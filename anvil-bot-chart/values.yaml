@@ -1,0 +1,322 @@
+replicaCount: 1
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+bot:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: us-central1-docker.pkg.dev/shogunex-8a0d4/anvil-bot/bot-service
+    pullPolicy: Always
+    tag: "0.0.1"
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  config:
+    logLevel: "info"
+    # RabbitMQ
+    rabbitmqPrefetchCount: 1
+    rabbitmqQueueName: "swap_orders"
+    rabbitmqMaxRetries: 3
+    rabbitmqTaskDelayMs: 2000
+    # Health check
+    healthCheck:
+      port: 8080
+      livenessPath: "/health/liveness"
+      readinessPath: "/health/readiness"
+    # Swap settings
+    swapProcessingInterval: 60000
+    swapReferralFeePercentage: 0.2
+    swapMinimumAmount: 0.002
+    swapMinimumDepositAmount: 0.01
+    swapFeePercentage: 0.005
+    swapWithdrawFee: 0.000005
+    swapSlippage: 5
+    # Solana
+    solanaNetworkFee: 0.002
+    solanaSplTokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    solscanUrl: "https://solscan.io/tx"
+    # Services
+    dexscreenerApiUrl: "https://api.dexscreener.com/latest/dex/tokens"
+    # Social
+    telegramUrl: "https://t.me/shoguncrypto_com"
+    twitterUrl: "https://x.com/shoguncryptos"
+    websiteUrl: "https://shoguncrypto.com/"
+    supportUrl: "https://t.me/Shogun_Anvil_Support"
+
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+
+  secrets:
+    telegramBotToken: ""
+    solanaRpcUrl: ""
+    encryptionSalt: ""
+    swapAdminWalletAddress: ""
+    tgBotSuperAdminId: ""
+    tgBotIntroVideoId: ""
+
+swap:
+  enabled: true
+  replicaCount: 2
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 80
+
+  image:
+    repository: us-central1-docker.pkg.dev/shogunex-8a0d4/anvil-bot/swap-service
+    pullPolicy: Always
+    tag: "0.0.1"
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  config:
+    logLevel: "info"
+    processingInterval: "5s"
+    prefetchCount: 1
+    rabbitmqQueue: "swap_orders"
+    rabbitmqMaxRetries: 3
+    rabbitmqTaskDelayMs: 2000
+    swapProcessingInterval: 60000
+    swapReferralFeePercentage: 0.2
+    swapMinimumAmount: 0.002
+    swapMinimumDepositAmount: 0.01
+    swapFeePercentage: 0.005
+    swapWithdrawFee: 0.000005
+    swapSlippage: 5
+    solanaNetworkFee: 0.002
+    solanaSplTokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+    solscanUrl: "https://solscan.io/tx"
+    dexscreenerApiUrl: "https://api.dexscreener.com/latest/dex/tokens"
+    healthCheck:
+      port: 8080
+      livenessPath: "/health/liveness"
+      readinessPath: "/health/readiness"
+
+  secrets:
+    solanaRpcUrl: ""
+    encryptionSalt: ""
+    swapAdminWalletAddress: ""
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+    requests:
+      cpu: 500m
+      memory: 256Mi
+
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+
+  # Add a HPA section complementing the autoscaling config above
+  hpa:
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 60
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+admin:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: us-central1-docker.pkg.dev/shogunex-8a0d4/anvil-bot/admin-service
+    pullPolicy: Always
+    tag: "0.0.1"
+
+  service:
+    type: LoadBalancer
+    port: 8080
+
+  config:
+    logLevel: "info"
+    port: 8080
+    healthCheck:
+      port: 8080
+      livenessPath: "/health/liveness"
+      readinessPath: "/health/readiness"
+
+  secrets:
+    jwtSecret: ""
+    superAdminId: "7007420935"
+    superAdminEmail: ""
+    superAdminPassword: ""
+    superAdminName: "TraderMaxx"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+
+
+mongodb:
+  enabled: true
+  architecture: standalone
+
+  auth:
+    rootUser: "admin"
+    rootPassword: "" # Will be supplied via secrets (DO NOT COMMIT ACTUAL PASSWORDS)
+    usernames: ["anvil_bot_user"]
+    passwords: [""] # Will be supplied via secrets
+    databases: ["anvil_bot_db"]
+
+  persistence:
+    enabled: true
+    storageClass: "standard-rwo"
+    size: 20Gi
+    annotations:
+      "helm.sh/resource-policy": "keep"
+
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1001
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1.5Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+
+  # Optimizations for standard disk storage
+  extraFlags:
+    - "--wiredTigerCacheSizeGB=0.5"
+
+# RabbitMQ Configuration
+rabbitmq:
+  enabled: true
+  auth:
+    username: "anvil_bot_mq_user"
+    password: "" # Will be supplied via secrets
+  # existingSecretKey: "rabbitmq-password"  # If using existingSecret
+
+  persistence:
+    enabled: true
+    storageClass: "standard-rwo"
+    size: 8Gi
+    annotations:
+      "helm.sh/resource-policy": "keep"
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  # RabbitMQ configuration optimizations
+  extraPlugins: "rabbitmq_management rabbitmq_peer_discovery_k8s"
+
+  clustering:
+    enabled: true
+    rebalance: true
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false # Enable if you have Prometheus Operator
+
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 10
+
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    periodSeconds: 10
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: "anvil-bot-ksa@shogunex-8a0d4.iam.gserviceaccount.com"
+  name: "anvil-bot-sa"
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
