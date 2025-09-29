@@ -1,0 +1,15 @@
+{
+  "database": "mongodb://localhost:27017/bot",
+  "RABBITMQ_URL": "amqp://market_maker:market_maker_password@localhost:5672",
+  "RABBITMQ_QUEUE": "swap_orders",
+  "REDIS_URL": "redis://:redis_password@localhost:6379",
+  "processingInterval": 60000,
+  "logLevel": "info",
+  "fee_sum": 0.01,
+  "adminWalletAddress": "YOUR_ADMIN_WALLET_ADDRESS",
+  "solScanUrl": "https://solscan.io/tx",
+  "solTokenAddress": "So11111111111111111111111111111111111111112",
+  "minimumAmount": 0.05,
+  "SUPER_ADMIN_ID": "YOUR_ADMIN_ID",
+  "BOT_API": "http://localhost:3000/api"
+}

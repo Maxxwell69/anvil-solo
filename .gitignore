@@ -1,0 +1,24 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+
+# Build output
+dist/
+build/
+
+# IDE files
+.vscode/
+.DS_Store
+
+# Config files
+config.json
+
+# Kubernetes Secrets
+anvil-bot-chart/secrets.yaml
+
