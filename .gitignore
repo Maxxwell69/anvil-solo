@@ -51,6 +51,7 @@ coverage/
 *.pem
 private-key.txt
 secrets/
+.railway-token
 
 # Temporary files
 tmp/
