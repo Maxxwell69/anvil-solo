@@ -1,0 +1,73 @@
+{
+  "name": "anvil-solo",
+  "version": "1.0.0",
+  "description": "Solana Meme Coin Trading Bot - DCA, Ratio Trading, and Volume Generation",
+  "main": "dist/main/main.js",
+  "author": "Anvil",
+  "license": "Commercial",
+  "scripts": {
+    "build": "tsc && xcopy /E /I /Y src\\renderer dist\\renderer",
+    "start": "electron dist/main/main.js",
+    "dev": "npm run build && npm start",
+    "package": "electron-builder"
+  },
+  "build": {
+    "appId": "com.anvil.solo",
+    "productName": "Anvil Solo",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "publisherName": "Anvil Labs"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.finance"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icon.png",
+      "category": "Finance"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Maxxwell69",
+      "repo": "anvil-solo",
+      "releaseType": "release"
+    }
+  },
+  "dependencies": {
+    "@jup-ag/api": "^6.0.30",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.95.8",
+    "better-sqlite3": "^11.7.0",
+    "bs58": "^6.0.0",
+    "cross-fetch": "^4.0.0",
+    "electron": "^33.2.0",
+    "electron-updater": "^6.6.2",
+    "node-cron": "^3.0.3",
+    "node-machine-id": "^1.1.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.14.1",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "electron-builder": "^25.1.8",
+    "electron-rebuild": "^3.2.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

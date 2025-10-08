@@ -1,24 +1,74 @@
-# Node modules
+# Dependencies
 node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+release/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+config.json
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
-# Environment files
-.env
-
-# Build output
-dist/
-build/
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
 
 # IDE files
 .vscode/
-.DS_Store
+.idea/
+*.swp
+*.swo
+*~
 
-# Config files
-config.json
+# Test files
+coverage/
+.nyc_output/
 
-# Kubernetes Secrets
-anvil-bot-chart/secrets.yaml
+# Private keys (NEVER commit!)
+*.key
+*.pem
+private-key.txt
+secrets/
 
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Electron specific
+anvil-solo/.anvil/
+.anvil/
+
+# Admin dashboard build
+apps/admin-dashboard/build/
+
+# Backup files
+*.bak
+*.backup

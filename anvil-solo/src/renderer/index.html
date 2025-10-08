@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+  <title>Anvil Solo - Solana Trading Bot</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Unlock Screen (shown first) -->
+  <div id="unlock-screen" class="screen active">
+    <div class="unlock-container">
+      <h1>🔒 Anvil Solo</h1>
+      <p>Unlock your wallet to continue</p>
+      <div class="form-group">
+        <div class="password-input-wrapper">
+          <input type="password" id="unlock-password" placeholder="Enter master password" />
+          <button type="button" class="password-toggle" id="unlock-password-toggle" aria-label="Toggle password visibility">
+            <span class="password-toggle-icon">👁️</span>
+          </button>
+        </div>
+        <button id="unlock-btn" class="btn btn-primary">Unlock Wallet</button>
+      </div>
+      <div class="form-group">
+        <button id="generate-wallet-btn" class="btn btn-secondary">Generate New Wallet</button>
+        <button id="import-wallet-btn" class="btn btn-secondary">Import Wallet</button>
+      </div>
+      <div id="unlock-error" class="error-message"></div>
+    </div>
+  </div>
+
+  <!-- Generate Wallet Modal -->
+  <div id="generate-modal" class="modal">
+    <div class="modal-content">
+      <h2>🔑 Generate New Wallet</h2>
+      <div class="form-group">
+        <label>Master Password (min 8 characters)</label>
+        <div class="password-input-wrapper">
+          <input type="password" id="gen-password" placeholder="Enter password" />
+          <button type="button" class="password-toggle" id="gen-password-toggle">
+            <span class="password-toggle-icon">👁️</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="password-input-wrapper">
+          <input type="password" id="gen-confirm-password" placeholder="Confirm password" />
+          <button type="button" class="password-toggle" id="gen-confirm-toggle">
+            <span class="password-toggle-icon">👁️</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button id="gen-create-btn" class="btn btn-primary">Create Wallet</button>
+        <button id="gen-cancel-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+      <div id="gen-error" class="error-message"></div>
+    </div>
+  </div>
+
+  <!-- Import Wallet Modal -->
+  <div id="import-modal" class="modal">
+    <div class="modal-content">
+      <h2>📥 Import Wallet</h2>
+      <div class="form-group">
+        <label>Private Key</label>
+        <textarea id="import-private-key" placeholder="Paste your private key (Base58, JSON, or Base64)" rows="3"></textarea>
+        <small>Supported formats: Base58, JSON array, or Base64</small>
+      </div>
+      <div class="form-group">
+        <label>Master Password (min 8 characters)</label>
+        <div class="password-input-wrapper">
+          <input type="password" id="import-password" placeholder="Enter password" />
+          <button type="button" class="password-toggle" id="import-password-toggle">
+            <span class="password-toggle-icon">👁️</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="password-input-wrapper">
+          <input type="password" id="import-confirm-password" placeholder="Confirm password" />
+          <button type="button" class="password-toggle" id="import-confirm-toggle">
+            <span class="password-toggle-icon">👁️</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button id="import-create-btn" class="btn btn-primary">Import Wallet</button>
+        <button id="import-cancel-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+      <div id="import-error" class="error-message"></div>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="modal">
+    <div class="modal-content">
+      <h2>✅ Success!</h2>
+      <div id="success-message" class="success-text"></div>
+      <div class="form-actions">
+        <button id="success-ok-btn" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App (shown after unlock) -->
+  <div id="main-app" class="screen">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="logo">
+        <h2>⚡ Anvil Solo</h2>
+      </div>
+      <nav class="nav">
+        <a href="#" class="nav-item active" data-page="dashboard">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="#" class="nav-item" data-page="tokens">
+          <span>🪙</span> Token Manager
+        </a>
+        <a href="#" class="nav-item" data-page="dca">
+          <span>📈</span> DCA Strategy
+        </a>
+        <a href="#" class="nav-item" data-page="ratio">
+          <span>🎯</span> Ratio Trading
+        </a>
+        <a href="#" class="nav-item" data-page="bundle">
+          <span>📦</span> Bundle Trading
+        </a>
+        <a href="#" class="nav-item" data-page="activity">
+          <span>📋</span> Activity Log
+        </a>
+        <a href="#" class="nav-item" data-page="wallet">
+          <span>💰</span> Wallet
+        </a>
+        <a href="#" class="nav-item" data-page="settings">
+          <span>⚙️</span> Settings
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="lock-wallet-btn" class="btn btn-small">🔒 Lock Wallet</button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Dashboard Page -->
+      <div id="dashboard-page" class="page active">
+        <h1>Dashboard</h1>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">SOL Balance</div>
+            <div class="stat-value" id="sol-balance">0.00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Strategies</div>
+            <div class="stat-value" id="active-strategies">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Today's Volume</div>
+            <div class="stat-value" id="today-volume">0 SOL</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Trades</div>
+            <div class="stat-value" id="total-trades">0</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0;">Active Strategies</h2>
+            <button id="refresh-strategies-btn" class="btn btn-small" style="background: #3498db;">
+              🔄 Refresh
+            </button>
+          </div>
+          <div id="strategies-list" class="strategies-list">
+            <div class="empty-state">No active strategies. Create one to get started!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Token Manager Page -->
+      <div id="tokens-page" class="page">
+        <h1>Token Manager</h1>
+        <p class="page-description">Manage your token list with names and contract addresses for easy trading</p>
+
+        <div class="section">
+          <h2>Add New Token</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Token Name</label>
+              <input type="text" id="token-name" placeholder="e.g., Bonk" />
+            </div>
+            <div class="form-group">
+              <label>Symbol (Optional)</label>
+              <input type="text" id="token-symbol" placeholder="e.g., BONK" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Contract Address (CA)</label>
+            <input type="text" id="token-address" placeholder="Enter Solana token mint address" />
+            <small>Token will be validated if Jupiter API is accessible (optional)</small>
+          </div>
+          <div class="form-group">
+            <label>Notes (Optional)</label>
+            <textarea id="token-notes" placeholder="Add notes about this token..." rows="2"></textarea>
+          </div>
+          <div class="form-actions">
+            <button id="add-token-btn" class="btn btn-primary">Add Token</button>
+          </div>
+          <div id="token-status" class="status-message"></div>
+        </div>
+
+        <div class="section">
+          <h2>My Tokens</h2>
+          <div id="tokens-list" class="tokens-list">
+            <div class="empty-state">No tokens added yet. Add your first token above!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DCA Strategy Page -->
+      <div id="dca-page" class="page">
+        <h1>DCA (Dollar Cost Averaging)</h1>
+        <p class="page-description">Buy or sell tokens on a schedule to average out price fluctuations.</p>
+
+        <div class="form-container">
+          <div class="form-group">
+            <label>Select Token (Optional)</label>
+            <select id="dca-token-select">
+              <option value="">-- Select from your tokens or enter below --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Or Enter Token Address</label>
+            <input type="text" id="dca-token" placeholder="Enter Solana token mint address" />
+            <small>Example: DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 (BONK)</small>
+          </div>
+
+          <div class="form-group">
+            <label>Direction</label>
+            <select id="dca-direction">
+              <option value="buy">Buy (SOL → Token)</option>
+              <option value="sell">Sell (Token → SOL)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Total Amount</label>
+              <input type="number" id="dca-amount" placeholder="10" step="0.01" />
+              <small>Total SOL or tokens to trade</small>
+            </div>
+
+            <div class="form-group">
+              <label>Number of Orders</label>
+              <input type="number" id="dca-orders" placeholder="24" min="1" />
+              <small>Split into N orders</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Frequency</label>
+            <select id="dca-frequency">
+              <option value="hourly">Every Hour</option>
+              <option value="2h">Every 2 Hours</option>
+              <option value="4h">Every 4 Hours</option>
+              <option value="6h">Every 6 Hours</option>
+              <option value="daily">Daily</option>
+              <option value="custom">Custom Interval</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="dca-custom-interval" style="display: none;">
+            <label>Custom Interval (minutes)</label>
+            <input type="number" id="dca-interval-minutes" placeholder="30" min="1" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Slippage (%)</label>
+              <input type="number" id="dca-slippage" placeholder="1" step="0.1" value="1" />
+            </div>
+
+            <div class="form-group">
+              <label>Priority Fee (lamports)</label>
+              <input type="number" id="dca-priority-fee" placeholder="100000" value="100000" />
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button id="create-dca-btn" class="btn btn-primary">Create DCA Strategy</button>
+            <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
+          </div>
+
+          <div id="dca-status" class="status-message"></div>
+        </div>
+      </div>
+
+      <!-- Ratio Trading Page -->
+      <div id="ratio-page" class="page">
+        <h1>Ratio Trading</h1>
+        <p class="page-description">Create trading volume with specific buy/sell ratios while maintaining position.</p>
+
+        <div class="form-container">
+          <div class="form-group">
+            <label>Select Token (Optional)</label>
+            <select id="ratio-token-select">
+              <option value="">-- Select from your tokens or enter below --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Or Enter Token Address</label>
+            <input type="text" id="ratio-token" placeholder="Enter Solana token mint address" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Daily Volume (SOL)</label>
+              <input type="number" id="ratio-volume" placeholder="50" step="1" />
+              <small>Target daily volume</small>
+            </div>
+
+            <div class="form-group">
+              <label>Trades Per Hour</label>
+              <input type="number" id="ratio-trades-per-hour" placeholder="10" min="1" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Buy Ratio (%)</label>
+              <input type="number" id="ratio-buy" placeholder="60" min="0" max="100" value="60" />
+            </div>
+
+            <div class="form-group">
+              <label>Sell Ratio (%)</label>
+              <input type="number" id="ratio-sell" placeholder="40" min="0" max="100" value="40" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Target Token Balance</label>
+              <input type="number" id="ratio-target-balance" placeholder="1000000" />
+              <small>Balance to maintain</small>
+            </div>
+
+            <div class="form-group">
+              <label>Rebalance Threshold (%)</label>
+              <input type="number" id="ratio-rebalance" placeholder="10" value="10" />
+              <small>±% triggers rebalance</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ratio-randomize" checked />
+              Randomize timing and amounts (looks organic)
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button id="create-ratio-btn" class="btn btn-primary">Create Ratio Strategy</button>
+            <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
+          </div>
+
+          <div id="ratio-status" class="status-message"></div>
+        </div>
+      </div>
+
+      <!-- Bundle Trading Page -->
+      <div id="bundle-page" class="page">
+        <h1>Bundle Trading</h1>
+        <p class="page-description">Execute multiple rapid trades for volume generation.</p>
+
+        <div class="form-container">
+          <div class="form-group">
+            <label>Select Token (Optional)</label>
+            <select id="bundle-token-select">
+              <option value="">-- Select from your tokens or enter below --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Or Enter Token Address</label>
+            <input type="text" id="bundle-token" placeholder="Enter Solana token mint address" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Trades Per Bundle</label>
+              <input type="number" id="bundle-trades" placeholder="10" min="1" max="20" value="10" />
+            </div>
+
+            <div class="form-group">
+              <label>Minutes Between Bundles</label>
+              <input type="number" id="bundle-interval" placeholder="30" min="1" value="30" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Min Trade Size (SOL)</label>
+              <input type="number" id="bundle-min-size" placeholder="0.1" step="0.01" value="0.1" />
+            </div>
+
+            <div class="form-group">
+              <label>Max Trade Size (SOL)</label>
+              <input type="number" id="bundle-max-size" placeholder="1.0" step="0.01" value="1.0" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="bundle-multi-wallet" checked />
+              Use multiple wallets (rotate through derived wallets)
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button id="create-bundle-btn" class="btn btn-primary">Create Bundle Strategy</button>
+            <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
+          </div>
+
+          <div id="bundle-status" class="status-message"></div>
+        </div>
+      </div>
+
+      <!-- Activity Log Page -->
+      <div id="activity-page" class="page">
+        <h1>Activity Log</h1>
+        <div class="activity-log">
+          <div class="empty-state">No transactions yet. Start a strategy to see activity!</div>
+        </div>
+      </div>
+
+      <!-- Wallet Page -->
+      <div id="wallet-page" class="page">
+        <h1>Wallet Management</h1>
+        
+        <div class="section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0;">My Wallets</h2>
+            <button id="refresh-wallets-btn" class="btn btn-small" style="background: #3498db;">
+              🔄 Refresh Balances
+            </button>
+          </div>
+          <div id="all-wallets-list" class="wallets-list">
+            <div class="empty-state">Loading wallets...</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>Generate Additional Wallets</h2>
+          <p>Create derived wallets for volume trading</p>
+          <div class="form-row">
+            <div class="form-group">
+              <input type="number" id="derived-wallet-count" placeholder="5" min="1" max="10" value="5" />
+            </div>
+            <div class="form-group">
+              <button id="generate-derived-btn" class="btn btn-primary">Generate Wallets</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2>💸 Withdraw SOL</h2>
+          <div class="form-group">
+            <label>From Wallet</label>
+            <select id="withdraw-sol-from">
+              <option value="">Select wallet...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>To Address</label>
+            <input type="text" id="withdraw-sol-to" placeholder="Destination Solana address" />
+          </div>
+          <div class="form-group">
+            <label>Amount (SOL)</label>
+            <input type="number" id="withdraw-sol-amount" placeholder="0.1" step="0.001" min="0" />
+            <small>⚠️ Minimum 0.001 SOL will be kept in wallet for rent</small>
+          </div>
+          <div class="form-actions">
+            <button id="withdraw-sol-btn" class="btn btn-primary">Withdraw SOL</button>
+          </div>
+          <div id="withdraw-sol-status" class="status-message"></div>
+        </div>
+
+        <div class="section">
+          <h2>🪙 Withdraw Tokens</h2>
+          <div class="form-group">
+            <label>From Wallet</label>
+            <select id="withdraw-token-from">
+              <option value="">Select wallet...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Select Token (Optional)</label>
+            <select id="withdraw-token-select">
+              <option value="">-- Select from your tokens or enter below --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Or Enter Token Mint</label>
+            <input type="text" id="withdraw-token-mint" placeholder="Token contract address" />
+          </div>
+          <div class="form-group">
+            <label>To Address</label>
+            <input type="text" id="withdraw-token-to" placeholder="Destination Solana address" />
+          </div>
+          <div class="form-group">
+            <label>Amount (Tokens)</label>
+            <input type="number" id="withdraw-token-amount" placeholder="100" step="0.000001" min="0" />
+            <small>⚠️ Ensure wallet has at least 0.001 SOL for gas fees</small>
+          </div>
+          <div class="form-actions">
+            <button id="withdraw-token-btn" class="btn btn-primary">Withdraw Tokens</button>
+          </div>
+          <div id="withdraw-token-status" class="status-message"></div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="settings-page" class="page">
+        <h1>Settings</h1>
+        
+        <!-- License Section -->
+        <div class="section">
+          <h2>License Information</h2>
+          
+          <div class="license-info-card" id="license-info">
+            <div class="license-tier">
+              <span class="license-tier-label">Current Tier:</span>
+              <span class="license-tier-value" id="license-tier">Loading...</span>
+            </div>
+            <div class="license-status">
+              <span class="license-status-label">Status:</span>
+              <span class="license-status-value" id="license-status">Active</span>
+            </div>
+            <div class="license-expires" id="license-expires-section" style="display: none;">
+              <span class="license-expires-label">Expires:</span>
+              <span class="license-expires-value" id="license-expires">N/A</span>
+            </div>
+            <div class="license-hwid">
+              <span class="license-hwid-label">Hardware ID:</span>
+              <span class="license-hwid-value" id="license-hwid">Loading...</span>
+              <button class="btn-icon" id="copy-hwid-btn" title="Copy Hardware ID">📋</button>
+            </div>
+          </div>
+
+          <!-- License Features -->
+          <div class="license-features" id="license-features">
+            <h3>Your Plan Features</h3>
+            <div class="features-grid">
+              <div class="feature-item">
+                <span class="feature-icon">📊</span>
+                <span class="feature-name">Active Strategies:</span>
+                <span class="feature-value" id="feature-strategies">-</span>
+              </div>
+              <div class="feature-item">
+                <span class="feature-icon">💰</span>
+                <span class="feature-name">Max Wallets:</span>
+                <span class="feature-value" id="feature-wallets">-</span>
+              </div>
+              <div class="feature-item">
+                <span class="feature-icon">🎯</span>
+                <span class="feature-name">Strategy Types:</span>
+                <span class="feature-value" id="feature-types">-</span>
+              </div>
+              <div class="feature-item">
+                <span class="feature-icon">☁️</span>
+                <span class="feature-name">Cloud Backup:</span>
+                <span class="feature-value" id="feature-cloud">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activate License -->
+          <div class="license-activate" id="activate-section">
+            <h3>Activate License</h3>
+            <p class="help-text">Enter your license key to upgrade your plan or activate a new license.</p>
+            <div class="form-group">
+              <label>License Key</label>
+              <input type="text" id="license-key-input" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" class="input">
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button id="activate-license-btn" class="btn btn-primary">Activate License</button>
+              <button id="validate-license-btn" class="btn btn-secondary">Re-validate</button>
+              <button id="deactivate-license-btn" class="btn btn-danger">Deactivate</button>
+            </div>
+            <div id="license-action-status" class="status-message"></div>
+          </div>
+
+          <!-- Upgrade Options -->
+          <div class="license-upgrade">
+            <h3>Upgrade Options</h3>
+            <div class="plans-grid">
+              <div class="plan-card">
+                <div class="plan-name">Starter</div>
+                <div class="plan-price">$29<span>/month</span></div>
+                <ul class="plan-features">
+                  <li>✅ 1 active strategy</li>
+                  <li>✅ Basic DCA only</li>
+                  <li>✅ 5 wallets max</li>
+                  <li>❌ No cloud backup</li>
+                </ul>
+              </div>
+              <div class="plan-card plan-popular">
+                <div class="plan-badge">Most Popular</div>
+                <div class="plan-name">Pro</div>
+                <div class="plan-price">$99<span>/month</span></div>
+                <ul class="plan-features">
+                  <li>✅ 10 active strategies</li>
+                  <li>✅ All strategy types</li>
+                  <li>✅ 10 wallets max</li>
+                  <li>✅ Cloud strategy backup</li>
+                </ul>
+              </div>
+              <div class="plan-card">
+                <div class="plan-name">Enterprise</div>
+                <div class="plan-price">$299<span>/month</span></div>
+                <ul class="plan-features">
+                  <li>✅ Unlimited strategies</li>
+                  <li>✅ All strategy types</li>
+                  <li>✅ Unlimited wallets</li>
+                  <li>✅ Priority support</li>
+                </ul>
+              </div>
+              <div class="plan-card plan-lifetime">
+                <div class="plan-badge">Best Value</div>
+                <div class="plan-name">Lifetime</div>
+                <div class="plan-price">$999<span> one-time</span></div>
+                <ul class="plan-features">
+                  <li>✅ All Enterprise features</li>
+                  <li>✅ Forever</li>
+                  <li>✅ Free updates</li>
+                  <li>✅ Priority support</li>
+                </ul>
+              </div>
+            </div>
+            <p class="help-text">Contact support or visit our website to purchase a license.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
+
+

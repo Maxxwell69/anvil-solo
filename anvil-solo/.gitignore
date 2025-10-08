@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+release/
+out/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# User data
+.anvil/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Electron
+.webpack/
+
+# Test files
+test.js
+test-*.js
+
+# Sensitive data
+config.json
+secrets.json
+private-keys/
+wallets/
+
+# Production builds
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.snap
+
+
+
+
