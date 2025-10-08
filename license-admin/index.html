@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anvil License Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-card, .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            max-width: none;
+        }
+
+        h1, h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-starter { background: #e3f2fd; color: #1976d2; }
+        .badge-pro { background: #e8f5e9; color: #388e3c; }
+        .badge-enterprise { background: #fff3e0; color: #f57c00; }
+        .badge-lifetime { background: #f3e5f5; color: #7b1fa2; }
+
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+
+        .nav {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .nav button {
+            background: #f5f5f5;
+            color: #333;
+            margin: 0;
+        }
+
+        .nav button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .license-key {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 18px;
+            margin: 15px 0;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .logout {
+            float: right;
+            background: #f44336;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <h1>🔑 Anvil License Admin</h1>
+            </div>
+            <h2>Admin Login</h2>
+            <input type="text" id="apiUrl" placeholder="API URL (https://your-app.railway.app)" value="https://endearing-compassion-production-bde0.up.railway.app">
+            <input type="password" id="adminKey" placeholder="Admin API Key">
+            <button onclick="login()">Login</button>
+            <p id="loginError" class="error" style="margin-top: 15px;"></p>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="hidden">
+        <div class="container">
+            <div class="card">
+                <h1>🎯 License Management Dashboard</h1>
+                <button class="logout" onclick="logout()">Logout</button>
+            </div>
+
+            <div class="nav">
+                <button class="active" onclick="showTab('analytics')">📊 Analytics</button>
+                <button onclick="showTab('create')">➕ Create License</button>
+                <button onclick="showTab('users')">👥 Users</button>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div id="analyticsTab" class="tab-content">
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats will be loaded here -->
+                </div>
+
+                <div class="card">
+                    <h2>Recent Activations</h2>
+                    <table id="recentTable">
+                        <thead>
+                            <tr>
+                                <th>License Key</th>
+                                <th>Tier</th>
+                                <th>Activated</th>
+                                <th>Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentBody">
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Create License Tab -->
+            <div id="createTab" class="tab-content hidden">
+                <div class="card">
+                    <h2>Create New License</h2>
+                    <select id="tier">
+                        <option value="starter">Starter - $29/mo</option>
+                        <option value="pro">Pro - $99/mo</option>
+                        <option value="enterprise">Enterprise - $299/mo</option>
+                        <option value="lifetime">Lifetime - $999 one-time</option>
+                    </select>
+                    <input type="email" id="email" placeholder="Customer Email (optional)">
+                    <input type="number" id="days" placeholder="Valid for X days (empty for lifetime)" value="30">
+                    <textarea id="notes" placeholder="Notes (optional)" rows="3"></textarea>
+                    <button onclick="createLicense()">Generate License Key</button>
+                    
+                    <div id="newLicense" class="hidden">
+                        <h3 class="success">✅ License Created!</h3>
+                        <div class="license-key" id="licenseKey"></div>
+                        <button onclick="copyLicense()">Copy Key</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="usersTab" class="tab-content hidden">
+                <div class="card">
+                    <h2>All Users</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>License Key</th>
+                                <th>Tier</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Expires</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody">
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let API_URL = '';
+        let ADMIN_KEY = '';
+
+        async function login() {
+            API_URL = document.getElementById('apiUrl').value.trim();
+            ADMIN_KEY = document.getElementById('adminKey').value.trim();
+            
+            if (!API_URL || !ADMIN_KEY) {
+                document.getElementById('loginError').textContent = 'Please enter both API URL and Admin Key';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/analytics`, {
+                    headers: { 'x-admin-key': ADMIN_KEY }
+                });
+
+                if (response.ok) {
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('dashboard').classList.remove('hidden');
+                    loadAnalytics();
+                    setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
+                } else {
+                    document.getElementById('loginError').textContent = 'Invalid API key or URL';
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Connection error: ' + error.message;
+            }
+        }
+
+        function logout() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('adminKey').value = '';
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.nav button').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            event.target.classList.add('active');
+
+            if (tabName === 'users') loadUsers();
+        }
+
+        async function loadAnalytics() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/analytics`, {
+                    headers: { 'x-admin-key': ADMIN_KEY }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const licenses = data.analytics.licenses;
+                    const revenue = data.analytics.revenue;
+
+                    let totalLicenses = 0;
+                    let activeLicenses = 0;
+                    let totalRevenue = 0;
+
+                    licenses.forEach(tier => {
+                        totalLicenses += parseInt(tier.total_count);
+                        activeLicenses += parseInt(tier.activated_count);
+                    });
+
+                    revenue.forEach(r => {
+                        totalRevenue += parseInt(r.monthly_revenue);
+                    });
+
+                    document.getElementById('statsGrid').innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number">${totalLicenses}</div>
+                            <div class="stat-label">Total Licenses</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${activeLicenses}</div>
+                            <div class="stat-label">Active Licenses</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">$${totalRevenue}</div>
+                            <div class="stat-label">Monthly Revenue</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${licenses.length}</div>
+                            <div class="stat-label">Tiers Available</div>
+                        </div>
+                    `;
+
+                    // Load recent activations
+                    const tbody = document.getElementById('recentBody');
+                    tbody.innerHTML = data.analytics.recentActivations.map(act => `
+                        <tr>
+                            <td><code>${act.license_key}</code></td>
+                            <td><span class="badge badge-${act.tier}">${act.tier.toUpperCase()}</span></td>
+                            <td>${act.activated_at ? new Date(act.activated_at).toLocaleString() : 'Not activated'}</td>
+                            <td>${act.last_validated ? new Date(act.last_validated).toLocaleString() : 'Never'}</td>
+                        </tr>
+                    `).join('') || '<tr><td colspan="4">No activations yet</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        async function createLicense() {
+            const tier = document.getElementById('tier').value;
+            const email = document.getElementById('email').value;
+            const days = document.getElementById('days').value;
+            const notes = document.getElementById('notes').value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/license/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-key': ADMIN_KEY
+                    },
+                    body: JSON.stringify({
+                        tier,
+                        email: email || null,
+                        expiresInDays: days ? parseInt(days) : null,
+                        notes: notes || null
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('licenseKey').textContent = data.licenseKey;
+                    document.getElementById('newLicense').classList.remove('hidden');
+                    
+                    // Clear form
+                    document.getElementById('email').value = '';
+                    document.getElementById('notes').value = '';
+                    
+                    loadAnalytics(); // Refresh stats
+                } else {
+                    alert('Error creating license: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function copyLicense() {
+            const text = document.getElementById('licenseKey').textContent;
+            navigator.clipboard.writeText(text);
+            alert('License key copied to clipboard!');
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/users`, {
+                    headers: { 'x-admin-key': ADMIN_KEY }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const tbody = document.getElementById('usersBody');
+                    tbody.innerHTML = data.users.map(user => `
+                        <tr>
+                            <td><code>${user.license_key}</code></td>
+                            <td><span class="badge badge-${user.tier}">${user.tier.toUpperCase()}</span></td>
+                            <td>${user.email || 'N/A'}</td>
+                            <td>${user.hwid ? '<span class="success">✓ Active</span>' : 'Not activated'}</td>
+                            <td>${user.expires_at ? new Date(user.expires_at).toLocaleDateString() : 'Lifetime'}</td>
+                            <td><button onclick="extendLicense('${user.license_key}')">Extend</button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        async function extendLicense(licenseKey) {
+            const days = prompt('Extend by how many days?', '30');
+            if (!days) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/license/${licenseKey}/extend`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-key': ADMIN_KEY
+                    },
+                    body: JSON.stringify({ daysToAdd: parseInt(days) })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('License extended successfully!');
+                    loadUsers();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+
