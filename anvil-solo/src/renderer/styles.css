@@ -212,6 +212,9 @@ select {
   color: #e0e0e0;
   font-size: 1em;
   transition: all 0.3s;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Password Input Wrapper */
@@ -759,6 +762,11 @@ small {
   backdrop-filter: blur(5px);
   align-items: center;
   justify-content: center;
+  pointer-events: all;
+}
+
+.modal * {
+  pointer-events: all;
 }
 
 .modal.active {
