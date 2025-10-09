@@ -1,10 +1,11 @@
 // Anvil Solo - Frontend Application
 console.log('Anvil Solo UI loaded');
 
-// Check if window.electronAPI exists (preload bridge)
-if (!window.electronAPI) {
-  console.error('electronAPI not found - preload may not be working');
-  alert('Error: Application bridge not initialized. Please restart the app.');
+// Check if window.electron exists (preload bridge)
+if (!window.electron) {
+  console.warn('electron API not fully loaded yet - some features may not work');
+} else {
+  console.log('✅ Electron API loaded successfully');
 }
 
 // Placeholder alert for now
