@@ -6,10 +6,12 @@
   "author": "Anvil",
   "license": "Commercial",
   "scripts": {
-    "build": "tsc && xcopy /E /I /Y src\\renderer dist\\renderer",
+    "build": "tsc && node -e \"require('fs-extra').copySync('src/renderer', 'dist/renderer')\"",
+    "build:win": "tsc && xcopy /E /I /Y src\\renderer dist\\renderer",
     "start": "electron dist/main/main.js",
     "dev": "npm run build && npm start",
-    "package": "electron-builder"
+    "package": "npm run build && electron-builder",
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.anvil.solo",
@@ -24,17 +26,14 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico",
       "publisherName": "Anvil Labs"
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns",
       "category": "public.app-category.finance"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icon.png",
       "category": "Finance"
     },
     "publish": {
@@ -64,9 +63,11 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@types/node-machine-id": "^1.1.4",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "electron-rebuild": "^3.2.9",
+    "fs-extra": "^11.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   }
