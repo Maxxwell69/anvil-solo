@@ -414,22 +414,33 @@
             const days = document.getElementById('days').value;
             const notes = document.getElementById('notes').value;
 
+            console.log('Creating license with:', { tier, email, days, notes });
+
             try {
+                const requestBody = {
+                    tier,
+                    email: email || null,
+                    expiresInDays: days ? parseInt(days) : null,
+                    notes: notes || null
+                };
+                
+                console.log('Request body:', requestBody);
+                console.log('API URL:', API_URL);
+                console.log('Admin Key:', ADMIN_KEY ? 'Set' : 'NOT SET');
+
                 const response = await fetch(`${API_URL}/api/admin/license/create`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-admin-key': ADMIN_KEY
                     },
-                    body: JSON.stringify({
-                        tier,
-                        email: email || null,
-                        expiresInDays: days ? parseInt(days) : null,
-                        notes: notes || null
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
+                console.log('Response status:', response.status);
+                
                 const data = await response.json();
+                console.log('Response data:', data);
 
                 if (data.success) {
                     document.getElementById('licenseKey').textContent = data.licenseKey;
@@ -440,11 +451,15 @@
                     document.getElementById('notes').value = '';
                     
                     loadAnalytics(); // Refresh stats
+                    
+                    alert(`✅ License created successfully!\n\nKey: ${data.licenseKey}\n\nCopy it now!`);
                 } else {
-                    alert('Error creating license: ' + data.error);
+                    console.error('API error:', data.error);
+                    alert('Error creating license: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                console.error('License creation failed:', error);
+                alert('Error: ' + error.message + '\n\nCheck console for details (F12)');
             }
         }
 
