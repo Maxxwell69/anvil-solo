@@ -275,29 +275,43 @@ async function loadLicenseInfo() {
       const licenseInfo = await window.electron.license.getInfo();
       const hwid = await window.electron.license.getHwid();
       
-      document.getElementById('license-tier').textContent = licenseInfo.tier.toUpperCase();
-      document.getElementById('license-status').textContent = licenseInfo.isValid ? 'Active' : 'Inactive';
-      document.getElementById('license-hwid').textContent = hwid.substring(0, 16) + '...';
-      
-      if (licenseInfo.expiresAt) {
-        document.getElementById('license-expires-section').style.display = 'block';
-        document.getElementById('license-expires').textContent = new Date(licenseInfo.expiresAt).toLocaleDateString();
+      // Validate we have the data
+      if (licenseInfo && licenseInfo.tier) {
+        document.getElementById('license-tier').textContent = licenseInfo.tier.toUpperCase();
+        document.getElementById('license-status').textContent = licenseInfo.isValid ? 'Active' : 'Inactive';
+        
+        if (hwid) {
+          document.getElementById('license-hwid').textContent = hwid.substring(0, 16) + '...';
+        }
+        
+        if (licenseInfo.expiresAt) {
+          document.getElementById('license-expires-section').style.display = 'block';
+          document.getElementById('license-expires').textContent = new Date(licenseInfo.expiresAt).toLocaleDateString();
+        }
+        
+        // Update features
+        if (licenseInfo.features) {
+          const features = licenseInfo.features;
+          document.getElementById('feature-strategies').textContent = 
+            features.maxActiveStrategies === -1 ? 'Unlimited' : features.maxActiveStrategies;
+          document.getElementById('feature-wallets').textContent = 
+            features.maxWallets === -1 ? 'Unlimited' : features.maxWallets;
+          document.getElementById('feature-types').textContent = 
+            features.strategyTypes ? features.strategyTypes.join(', ').toUpperCase() : 'DCA';
+          document.getElementById('feature-cloud').textContent = features.cloudBackup ? 'Yes' : 'No';
+        }
+      } else {
+        // No license data, use FREE tier
+        resetToFreeTier();
       }
-      
-      // Update features
-      const features = licenseInfo.features;
-      document.getElementById('feature-strategies').textContent = 
-        features.maxActiveStrategies === -1 ? 'Unlimited' : features.maxActiveStrategies;
-      document.getElementById('feature-wallets').textContent = 
-        features.maxWallets === -1 ? 'Unlimited' : features.maxWallets;
-      document.getElementById('feature-types').textContent = features.strategyTypes.join(', ').toUpperCase();
-      document.getElementById('feature-cloud').textContent = features.cloudBackup ? 'Yes' : 'No';
     } else {
-      // Demo/fallback mode - show FREE tier
+      // Backend not ready - show FREE tier
+      console.log('⚠️ Backend not connected yet - showing FREE tier');
       resetToFreeTier();
     }
   } catch (error) {
     console.error('Error loading license info:', error);
+    // On any error, default to FREE tier
     resetToFreeTier();
   }
 }
