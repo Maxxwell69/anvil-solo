@@ -410,6 +410,13 @@ small {
   display: block;
 }
 
+.status-message.info {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  display: block;
+}
+
 .error-message {
   color: #ee5253;
   margin-top: 10px;

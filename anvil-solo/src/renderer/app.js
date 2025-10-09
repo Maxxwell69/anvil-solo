@@ -8,42 +8,18 @@ if (!window.electron) {
   console.log('✅ Electron API loaded successfully');
 }
 
-// Placeholder alert for now
+// Main initialization
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
   
-  // For now, show a simple welcome message
-  const unlockScreen = document.getElementById('unlock-screen');
-  if (unlockScreen) {
-    // Add basic functionality to unlock button
-    const unlockBtn = document.getElementById('unlock-btn');
-    const generateBtn = document.getElementById('generate-wallet-btn');
-    const importBtn = document.getElementById('import-wallet-btn');
-    
-    if (unlockBtn) {
-      unlockBtn.addEventListener('click', () => {
-        alert('Wallet unlock feature coming soon! For now, click "Generate New Wallet" to get started.');
-      });
-    }
-    
-    if (generateBtn) {
-      generateBtn.addEventListener('click', () => {
-        showModal('generate-modal');
-      });
-    }
-    
-    if (importBtn) {
-      importBtn.addEventListener('click', () => {
-        showModal('import-modal');
-      });
-    }
-  }
-  
-  // Setup modal handlers
-  setupModals();
+  // Skip unlock screen - go directly to main app
+  showMainApp();
   
   // Setup navigation
   setupNavigation();
+  
+  // Setup license activation
+  setupLicenseActivation();
   
   // Show welcome message
   showWelcomeMessage();
@@ -63,88 +39,152 @@ function hideModal(modalId) {
   }
 }
 
-function setupModals() {
-  // Generate wallet modal
-  const genCreateBtn = document.getElementById('gen-create-btn');
-  const genCancelBtn = document.getElementById('gen-cancel-btn');
+function setupLicenseActivation() {
+  const activateBtn = document.getElementById('activate-license-btn');
+  const validateBtn = document.getElementById('validate-license-btn');
+  const deactivateBtn = document.getElementById('deactivate-license-btn');
   
-  if (genCreateBtn) {
-    genCreateBtn.addEventListener('click', () => {
-      const password = document.getElementById('gen-password').value;
-      const confirm = document.getElementById('gen-confirm-password').value;
+  // Activate License
+  if (activateBtn) {
+    activateBtn.addEventListener('click', async () => {
+      const licenseKey = document.getElementById('license-key-input').value.trim();
       
-      if (!password || password.length < 8) {
-        showError('gen-error', 'Password must be at least 8 characters');
+      if (!licenseKey) {
+        showLicenseStatus('Please enter a license key', 'error');
         return;
       }
       
-      if (password !== confirm) {
-        showError('gen-error', 'Passwords do not match');
+      showLicenseStatus('Activating license...', 'info');
+      
+      try {
+        // Call the backend API
+        if (window.electron && window.electron.license) {
+          const result = await window.electron.license.activate(licenseKey);
+          
+          if (result.success) {
+            showLicenseStatus(`✅ ${result.license.tier.toUpperCase()} license activated!`, 'success');
+            updateLicenseDisplay(result.license);
+          } else {
+            showLicenseStatus(`❌ ${result.message}`, 'error');
+          }
+        } else {
+          // Fallback for testing
+          console.log('Testing license activation with key:', licenseKey);
+          showLicenseStatus(`✅ License activated! (Demo mode - connect to backend)`, 'success');
+          
+          // Update UI with demo data
+          document.getElementById('license-tier').textContent = 'PRO';
+          document.getElementById('license-status').textContent = 'Active';
+          document.getElementById('feature-strategies').textContent = '10';
+          document.getElementById('feature-wallets').textContent = '10';
+          document.getElementById('feature-types').textContent = 'All (DCA, Ratio, Bundle)';
+          document.getElementById('feature-cloud').textContent = 'Yes';
+        }
+      } catch (error) {
+        showLicenseStatus(`❌ Error: ${error.message}`, 'error');
+      }
+    });
+  }
+  
+  // Validate License
+  if (validateBtn) {
+    validateBtn.addEventListener('click', async () => {
+      showLicenseStatus('Revalidating license...', 'info');
+      
+      try {
+        if (window.electron && window.electron.license) {
+          const result = await window.electron.license.validate();
+          if (result) {
+            showLicenseStatus('✅ License is valid!', 'success');
+          } else {
+            showLicenseStatus('❌ License validation failed', 'error');
+          }
+        } else {
+          showLicenseStatus('✅ License validated! (Demo mode)', 'success');
+        }
+      } catch (error) {
+        showLicenseStatus(`❌ Error: ${error.message}`, 'error');
+      }
+    });
+  }
+  
+  // Deactivate License
+  if (deactivateBtn) {
+    deactivateBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to deactivate this license? You can reactivate it later.')) {
         return;
       }
       
-      // Show success and go to main app
-      hideModal('generate-modal');
-      showSuccessMessage('Wallet generated successfully! You can now start trading.');
-      setTimeout(() => {
-        showMainApp();
-      }, 2000);
-    });
-  }
-  
-  if (genCancelBtn) {
-    genCancelBtn.addEventListener('click', () => {
-      hideModal('generate-modal');
-    });
-  }
-  
-  // Import wallet modal
-  const importCreateBtn = document.getElementById('import-create-btn');
-  const importCancelBtn = document.getElementById('import-cancel-btn');
-  
-  if (importCreateBtn) {
-    importCreateBtn.addEventListener('click', () => {
-      const privateKey = document.getElementById('import-private-key').value;
-      const password = document.getElementById('import-password').value;
-      const confirm = document.getElementById('import-confirm-password').value;
-      
-      if (!privateKey) {
-        showError('import-error', 'Please enter your private key');
-        return;
+      try {
+        if (window.electron && window.electron.license) {
+          const result = await window.electron.license.deactivate();
+          if (result.success) {
+            showLicenseStatus('✅ License deactivated', 'success');
+            resetToFreeTier();
+          } else {
+            showLicenseStatus(`❌ ${result.message}`, 'error');
+          }
+        } else {
+          showLicenseStatus('✅ License deactivated! (Demo mode)', 'success');
+          resetToFreeTier();
+        }
+      } catch (error) {
+        showLicenseStatus(`❌ Error: ${error.message}`, 'error');
       }
-      
-      if (!password || password.length < 8) {
-        showError('import-error', 'Password must be at least 8 characters');
-        return;
-      }
-      
-      if (password !== confirm) {
-        showError('import-error', 'Passwords do not match');
-        return;
-      }
-      
-      // Show success and go to main app
-      hideModal('import-modal');
-      showSuccessMessage('Wallet imported successfully! You can now start trading.');
-      setTimeout(() => {
-        showMainApp();
-      }, 2000);
     });
   }
   
-  if (importCancelBtn) {
-    importCancelBtn.addEventListener('click', () => {
-      hideModal('import-modal');
+  // Copy HWID button
+  const copyHwidBtn = document.getElementById('copy-hwid-btn');
+  if (copyHwidBtn) {
+    copyHwidBtn.addEventListener('click', async () => {
+      try {
+        if (window.electron && window.electron.license) {
+          const hwid = await window.electron.license.getHwid();
+          navigator.clipboard.writeText(hwid);
+          showLicenseStatus('✅ Hardware ID copied to clipboard!', 'success');
+        } else {
+          const demoHwid = 'DEMO-HARDWARE-ID-12345';
+          navigator.clipboard.writeText(demoHwid);
+          showLicenseStatus('✅ Hardware ID copied!', 'success');
+        }
+      } catch (error) {
+        showLicenseStatus('❌ Failed to copy', 'error');
+      }
     });
+  }
+}
+
+function updateLicenseDisplay(license) {
+  document.getElementById('license-tier').textContent = license.tier.toUpperCase();
+  document.getElementById('license-status').textContent = license.isValid ? 'Active' : 'Inactive';
+  
+  if (license.expiresAt) {
+    document.getElementById('license-expires-section').style.display = 'block';
+    document.getElementById('license-expires').textContent = new Date(license.expiresAt).toLocaleDateString();
+  } else {
+    document.getElementById('license-expires-section').style.display = 'none';
   }
   
-  // Success modal
-  const successOkBtn = document.getElementById('success-ok-btn');
-  if (successOkBtn) {
-    successOkBtn.addEventListener('click', () => {
-      hideModal('success-modal');
-    });
-  }
+  // Update features
+  const features = license.features;
+  document.getElementById('feature-strategies').textContent = 
+    features.maxActiveStrategies === -1 ? 'Unlimited' : features.maxActiveStrategies;
+  document.getElementById('feature-wallets').textContent = 
+    features.maxWallets === -1 ? 'Unlimited' : features.maxWallets;
+  document.getElementById('feature-types').textContent = features.strategyTypes.join(', ').toUpperCase();
+  document.getElementById('feature-cloud').textContent = features.cloudBackup ? 'Yes' : 'No';
+}
+
+function resetToFreeTier() {
+  document.getElementById('license-tier').textContent = 'FREE';
+  document.getElementById('license-status').textContent = 'Active';
+  document.getElementById('license-expires-section').style.display = 'none';
+  document.getElementById('feature-strategies').textContent = '1';
+  document.getElementById('feature-wallets').textContent = '3';
+  document.getElementById('feature-types').textContent = 'DCA only';
+  document.getElementById('feature-cloud').textContent = 'No';
+  document.getElementById('license-key-input').value = '';
 }
 
 function setupNavigation() {
@@ -178,7 +218,7 @@ function showMainApp() {
   document.getElementById('unlock-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'flex';
   
-  // Load license info
+  // Load license info from backend
   loadLicenseInfo();
 }
 
@@ -228,35 +268,37 @@ function showWelcomeMessage() {
   console.log('='.repeat(50));
 }
 
-function loadLicenseInfo() {
-  // Placeholder - show FREE tier by default
-  const tierEl = document.getElementById('license-tier');
-  const statusEl = document.getElementById('license-status');
-  const hwidEl = document.getElementById('license-hwid');
-  
-  if (tierEl) tierEl.textContent = 'FREE';
-  if (statusEl) statusEl.textContent = 'Active';
-  if (hwidEl) hwidEl.textContent = 'Not available';
-  
-  // Update features
-  document.getElementById('feature-strategies').textContent = '1';
-  document.getElementById('feature-wallets').textContent = '3';
-  document.getElementById('feature-types').textContent = 'DCA only';
-  document.getElementById('feature-cloud').textContent = 'No';
-  
-  // License activation
-  const activateBtn = document.getElementById('activate-license-btn');
-  if (activateBtn) {
-    activateBtn.addEventListener('click', () => {
-      const licenseKey = document.getElementById('license-key-input').value;
-      if (!licenseKey) {
-        showLicenseStatus('Please enter a license key', 'error');
-        return;
+async function loadLicenseInfo() {
+  try {
+    // Load from backend if available
+    if (window.electron && window.electron.license) {
+      const licenseInfo = await window.electron.license.getInfo();
+      const hwid = await window.electron.license.getHwid();
+      
+      document.getElementById('license-tier').textContent = licenseInfo.tier.toUpperCase();
+      document.getElementById('license-status').textContent = licenseInfo.isValid ? 'Active' : 'Inactive';
+      document.getElementById('license-hwid').textContent = hwid.substring(0, 16) + '...';
+      
+      if (licenseInfo.expiresAt) {
+        document.getElementById('license-expires-section').style.display = 'block';
+        document.getElementById('license-expires').textContent = new Date(licenseInfo.expiresAt).toLocaleDateString();
       }
       
-      showLicenseStatus('License activation feature will be connected to API soon!', 'success');
-      console.log('License key entered:', licenseKey);
-    });
+      // Update features
+      const features = licenseInfo.features;
+      document.getElementById('feature-strategies').textContent = 
+        features.maxActiveStrategies === -1 ? 'Unlimited' : features.maxActiveStrategies;
+      document.getElementById('feature-wallets').textContent = 
+        features.maxWallets === -1 ? 'Unlimited' : features.maxWallets;
+      document.getElementById('feature-types').textContent = features.strategyTypes.join(', ').toUpperCase();
+      document.getElementById('feature-cloud').textContent = features.cloudBackup ? 'Yes' : 'No';
+    } else {
+      // Demo/fallback mode - show FREE tier
+      resetToFreeTier();
+    }
+  } catch (error) {
+    console.error('Error loading license info:', error);
+    resetToFreeTier();
   }
 }
 
