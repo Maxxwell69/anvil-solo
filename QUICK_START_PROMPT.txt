@@ -1,0 +1,188 @@
+================================================================================
+ANVIL BOT v3.0 - AI AGENT INSTRUCTION PROMPT
+================================================================================
+
+CONTEXT FOR AI AGENT:
+You are working on the Anvil Bot v3.0 project, a Telegram-based Solana trading bot
+with referral system, automated swaps, and admin dashboard.
+
+REPOSITORY INFORMATION:
+- GitHub: https://github.com/Maxxwell69/anvil3.0
+- Location: C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0
+- Branch: main
+- Status: Initial commit complete, dependencies installed
+- Original Source: https://github.com/ShogunEX/anvil-bot (cloned and customized)
+
+WHAT HAS BEEN DONE:
+✅ Repository cloned and pushed to GitHub
+✅ All dependencies installed (2,500+ packages)
+✅ Project structure analyzed and documented
+✅ Security audit completed
+✅ Referral/affiliate system identified (fully functional)
+✅ Configuration requirements documented
+
+PROJECT STRUCTURE:
+anvil3.0/
+├── bot/              # Telegram bot service (Node.js/TypeScript)
+├── swap/             # Token swap service (Solana integration)
+├── apps/admin-dashboard/  # React admin interface
+├── db/               # Database service (MongoDB)
+├── services/admin/   # Admin API service
+└── anvil-bot-chart/  # Kubernetes Helm chart
+
+TECHNOLOGY STACK:
+- Backend: Node.js, TypeScript, Express
+- Bot: node-telegram-bot-api
+- Blockchain: Solana (@solana/web3.js, Raydium SDK)
+- Database: MongoDB (Mongoose)
+- Queue: RabbitMQ
+- Frontend: React 18, Redux
+- DevOps: Docker, Kubernetes, Helm
+
+CRITICAL SECURITY ISSUES (MUST FIX BEFORE PRODUCTION):
+🚨 1. NO AUTHENTICATION on admin API routes (services/admin/src/routes/admin.ts)
+🚨 2. Hardcoded credentials in admin controller
+🚨 3. Overly permissive CORS (origin: "*")
+🚨 4. Sensitive data in console logs (private keys visible)
+🚨 5. Insufficient rate limiting
+🚨 6. Basic input validation only
+
+CONFIGURATION NEEDED:
+1. Telegram Bot Token (from @BotFather)
+2. Telegram Admin User ID (from @userinfobot)
+3. Solana RPC URL (Helius/Alchemy/QuickNode)
+4. Admin Solana Wallet Address
+5. MongoDB Connection String
+6. RabbitMQ Connection String
+7. 32-character Encryption Salt
+8. JWT Secret for admin auth
+9. Social media links (Telegram, Twitter, Website)
+
+FILES TO CONFIGURE:
+- bot/src/config.json
+- swap/src/config.json
+- .env file (create, don't commit)
+
+REFERRAL SYSTEM STATUS:
+✅ FULLY IMPLEMENTED AND FUNCTIONAL
+- Users can generate referral codes via /referral command
+- Automatic fee distribution during swaps
+- Admin can configure referral percentages per user
+- Database schemas: Referral, ReferralBy
+- Default: 30% of swap fees go to referrer
+- Real-time SOL transfers during transactions
+
+IMMEDIATE TASKS:
+1. Fix authentication middleware (add JWT verification)
+2. Remove hardcoded credentials (use environment variables)
+3. Fix CORS configuration (whitelist specific origins)
+4. Remove sensitive logging (redact private keys)
+5. Add rate limiting (express-rate-limit)
+6. Implement input validation (Joi)
+
+DEVELOPMENT COMMANDS:
+cd anvil3.0/bot && npm run dev       # Start bot in dev mode
+cd anvil3.0/swap && npm run dev      # Start swap service
+cd anvil3.0/apps/admin-dashboard && npm start  # Start admin UI
+docker-compose up -d                 # Start MongoDB & RabbitMQ
+
+TESTING:
+- Send /start to Telegram bot to test
+- Send /referral to test referral system
+- Access http://localhost:3000 for admin dashboard
+- Check http://localhost:15672 for RabbitMQ management
+
+SECURITY SCORE: 4/10
+- Authentication: 1/10 ❌
+- Authorization: 1/10 ❌
+- Input Validation: 3/10 ⚠️
+- Secrets Management: 2/10 ⚠️
+- Encryption: 8/10 ✅
+- Infrastructure: 7/10 ✅
+
+DOCUMENTATION LOCATION:
+Full details in: anvil3.0/ANVIL_BOT_PROJECT_SUMMARY.md
+
+AI AGENT INSTRUCTIONS:
+When starting work, always:
+1. Read ANVIL_BOT_PROJECT_SUMMARY.md first
+2. Check current security status
+3. Verify all dependencies are installed
+4. Review configuration requirements
+5. Test changes thoroughly before committing
+6. NEVER commit config.json or .env files
+7. Fix security issues before adding new features
+
+TYPICAL WORKFLOW:
+git checkout -b feature/your-feature
+# make changes
+npm run build
+npm run dev  # test locally
+git add .
+git commit -m "feat: description"
+git push origin feature/your-feature
+
+IMPORTANT WARNINGS:
+❌ DO NOT deploy without fixing authentication
+❌ DO NOT commit secrets or credentials
+❌ DO NOT use example credentials in production
+❌ DO NOT skip security hardening
+✅ DO test thoroughly in development
+✅ DO use environment variables
+✅ DO implement proper error handling
+✅ DO monitor logs and metrics
+
+NEXT AGENT SESSION GOALS:
+1. Implement authentication middleware
+2. Set up environment variables properly
+3. Remove all hardcoded credentials
+4. Fix CORS configuration
+5. Add rate limiting
+6. Implement input validation
+7. Clean up logging (remove sensitive data)
+8. Add comprehensive error handling
+
+USEFUL COMMANDS:
+# View project structure
+ls -R anvil3.0/
+
+# Check dependencies
+cd anvil3.0/bot && npm list --depth=0
+
+# Build all services
+cd anvil3.0/bot && npm run build
+cd anvil3.0/swap && npm run build
+
+# Generate Solana wallet
+cd anvil3.0/swap && node src/generateWallet.ts
+
+# Check Git status
+git status
+git log --oneline
+
+EXTERNAL SERVICES NEEDED:
+- MongoDB Atlas (free tier): https://www.mongodb.com/cloud/atlas
+- CloudAMQP (free tier): https://www.cloudamqp.com/
+- Helius RPC: https://www.helius.dev/
+- Telegram Bot: https://t.me/BotFather
+
+PROJECT MATURITY:
+- Code Quality: 7/10 (well-structured, TypeScript)
+- Security: 4/10 (needs authentication, validation)
+- Documentation: 8/10 (comprehensive docs provided)
+- Testing: 3/10 (minimal tests, needs improvement)
+- Production Ready: NO (fix security first)
+
+ESTIMATED TIME TO PRODUCTION:
+- Security fixes: 2-3 days
+- Testing: 1-2 days
+- Configuration: 1 day
+- Deployment setup: 1-2 days
+Total: ~1 week with proper testing
+
+================================================================================
+END OF INSTRUCTION PROMPT
+================================================================================
+
+COPY THIS ENTIRE FILE AND PROVIDE IT TO THE NEXT AI AGENT WORKING ON THIS PROJECT
+

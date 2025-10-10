@@ -1,324 +1,430 @@
-# ⚡ Anvil Solo - Professional Solana Trading Bot
+# 🤖 Anvil Bot v3.0 - Solana Trading Bot with Referral System
 
 <div align="center">
 
-![Anvil Solo](https://img.shields.io/badge/Solana-Trading%20Bot-purple?style=for-the-badge&logo=solana)
-![License](https://img.shields.io/badge/License-Commercial-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-1.0.0-green?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Development-yellow)
+![Security](https://img.shields.io/badge/Security-4%2F10-red)
+![License](https://img.shields.io/badge/License-Review_Required-blue)
 
-**Desktop trading bot for Solana meme coins with DCA, Volume Generation, and Advanced Strategies**
+**A sophisticated Telegram bot for automated Solana token trading with built-in referral system**
 
-[Features](#features) • [Download](#download) • [Documentation](#documentation) • [Pricing](#pricing)
+[Documentation](#documentation) •
+[Features](#features) •
+[Setup](#quick-setup) •
+[Security](#security-status) •
+[Contributing](#contributing)
 
 </div>
 
 ---
 
-## 🎯 What is Anvil Solo?
+## 📋 Overview
 
-Anvil Solo is a **professional-grade desktop trading bot** for Solana that helps you:
+Anvil Bot is a production-grade Telegram bot that enables automated cryptocurrency trading on the Solana blockchain. It includes a comprehensive referral/affiliate system, admin dashboard, and enterprise-ready infrastructure.
 
-- 🎯 **Execute DCA strategies** - Dollar Cost Average into positions
-- 📊 **Generate volume** - Ratio trading for organic-looking volume
-- 🎲 **Obfuscate patterns** - Bundle trading to avoid detection
-- 💰 **Manage multiple wallets** - Rotate through wallets for privacy
-- 🪙 **Track your portfolio** - Monitor all your tokens in one place
-- ☁️ **Backup strategies** - Sync configurations across devices
+### 🎯 Key Capabilities
 
-**Your keys stay on YOUR computer** - Never uploaded to any server!
-
----
-
-## ✨ Features
-
-### 🔐 Security First
-- **Local Key Storage** - Private keys encrypted on your device
-- **Password Protected** - AES encryption for wallet data
-- **No Cloud Keys** - Keys never leave your computer
-- **Hardware Binding** - License tied to your device
-
-### 📈 Trading Strategies
-- **DCA (Dollar Cost Averaging)** - Automated buy/sell schedules
-- **Ratio Trading** - Generate volume with buy/sell ratios
-- **Bundle Trading** - Execute multiple trades simultaneously
-- **Flexible Scheduling** - Cron-based timing or manual triggers
-
-### 💼 Wallet Management
-- **Multi-Wallet Support** - Create unlimited derived wallets
-- **Easy Withdrawals** - SOL and token withdrawals built-in
-- **Balance Tracking** - Real-time balance updates
-- **Solscan Integration** - Inspect wallets on blockchain
-
-### 🎨 Modern UI
-- **Beautiful Dashboard** - Real-time strategy monitoring
-- **Token Manager** - Organize and favorite your tokens
-- **Active Trades Panel** - Pause, resume, or stop strategies
-- **Responsive Design** - Clean, modern interface
-
-### ☁️ Cloud Features (PRO+)
-- **Strategy Backup** - Save strategies to cloud
-- **Multi-Device Sync** - Access from multiple computers
-- **Auto-Updates** - Seamless version upgrades
+- 🤖 **Telegram Bot** - User-friendly interface for trading
+- 💱 **Automated Swaps** - Raydium & Pump.fun integration  
+- 🎁 **Referral System** - Fully integrated affiliate program
+- 📊 **Admin Dashboard** - React-based management interface
+- 🔐 **Wallet Management** - Secure multi-wallet support
+- 💰 **Fee Distribution** - Real-time earnings distribution
+- ☸️ **Kubernetes Ready** - Production deployment with Helm
 
 ---
 
-## 💰 Pricing
+## 🏗️ Architecture
 
-### FREE Tier
-- 1 active strategy
-- Basic DCA only
-- 3 wallets max
-- Perfect for trying it out!
-
-### PRO - $99/month ⭐ Most Popular
-- 10 active strategies
-- All strategy types (DCA, Ratio, Bundle)
-- 10 wallets max
-- ☁️ Cloud strategy backup
-
-### ENTERPRISE - $299/month
-- ♾️ Unlimited strategies
-- ♾️ Unlimited wallets
-- All strategy types
-- Priority support
-
-### LIFETIME - $999 (One-time)
-- All Enterprise features
-- Free updates forever
-- Best value!
-
-**Small transaction fee applies:** 0.5% per trade
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Telegram Users                       │
+└─────────────────┬───────────────────────────────────────┘
+                  │
+                  ▼
+         ┌────────────────┐
+         │   Bot Service  │ ◄─── Telegram Bot API
+         │   (Node.js)    │
+         └────────┬───────┘
+                  │
+          ┌───────┴────────┐
+          │   RabbitMQ     │ ◄─── Message Queue
+          └───────┬────────┘
+                  │
+         ┌────────▼───────┐
+         │  Swap Service  │ ◄─── Solana Blockchain
+         │   (Node.js)    │
+         └────────┬───────┘
+                  │
+          ┌───────▼────────┐
+          │    MongoDB     │ ◄─── Database
+          └────────────────┘
+                  ▲
+                  │
+         ┌────────┴───────┐
+         │ Admin Service  │
+         │   (Express)    │
+         └────────┬───────┘
+                  ▲
+         ┌────────┴───────┐
+         │     React      │
+         │   Dashboard    │
+         └────────────────┘
+```
 
 ---
 
-## 🚀 Quick Start
+## ⚡ Features
 
-### Download
+### Core Trading Features
+- ✅ Token swapping on Raydium DEX
+- ✅ Pump.fun meme token support
+- ✅ Configurable slippage (default 5%)
+- ✅ Priority fees for faster execution
+- ✅ Multi-wallet batch transactions
+- ✅ Automatic retry mechanism (max 3 attempts)
 
-**Windows:**
-```
-Download: anvil-solo-setup-1.0.0.exe
-```
+### Referral/Affiliate System
+- ✅ **Automatic Code Generation** - Unique codes per user
+- ✅ **Real-time Fee Distribution** - SOL sent during swaps
+- ✅ **Admin Controls** - Configure percentages per user
+- ✅ **Database Tracking** - Complete referral relationships
+- ✅ **Default Fee:** 30% of swap fees to referrer
+- ✅ **Wallet Management** - Users set their earnings wallet
 
-**macOS:**
-```
-Download: anvil-solo-1.0.0.dmg
-```
+### Security Features
+- ✅ AES-256-GCM encryption for private keys
+- ✅ Secure IV generation
+- ✅ Authentication tags for data integrity
+- ✅ Environment-based secrets management
+- ✅ Kubernetes secrets integration
 
-**Linux:**
-```
-Download: anvil-solo-1.0.0.AppImage
+### Admin Features
+- User management
+- Token configuration
+- Trade monitoring
+- Fee adjustments
+- Referral management
+- Balance checking
+- System analytics
+
+---
+
+## 🚀 Quick Setup
+
+### Prerequisites
+```bash
+Node.js 16+
+MongoDB
+RabbitMQ
+Solana Wallet
+Telegram Bot Token
 ```
 
 ### Installation
 
-1. **Download** the installer for your platform
-2. **Run** the installer
-3. **Create** or import your wallet
-4. **Start trading!**
-
-### First Time Setup
-
-1. Launch Anvil Solo
-2. Create a new wallet or import existing
-3. Set a strong password
-4. Add your favorite tokens
-5. Create your first strategy
-6. Monitor on the dashboard!
-
----
-
-## 📖 Documentation
-
-- **[User Guide](anvil-solo/UI_GUIDE.md)** - Complete UI walkthrough
-- **[Deployment Guide](anvil-solo/DEPLOYMENT_COMPLETE_GUIDE.md)** - For self-hosting
-- **[Admin Guide](services/license-api/ADMIN_SYSTEM_GUIDE.md)** - For administrators
-- **[Implementation Status](anvil-solo/IMPLEMENTATION_STATUS.md)** - Technical details
-
----
-
-## 🏗️ For Developers
-
-### Project Structure
-
-```
-anvil-solo/              ← Desktop Trading Bot (Electron)
-├── src/main/            ← Backend logic
-│   ├── strategies/      ← DCA, Ratio, Bundle
-│   ├── wallet/          ← Wallet management
-│   ├── jupiter/         ← Jupiter API integration
-│   ├── license/         ← License validation
-│   └── fees/            ← Transaction fee system
-├── src/renderer/        ← UI (HTML/CSS/JS)
-└── src/preload/         ← IPC bridge
-
-services/license-api/    ← Admin & License API
-├── src/index.ts         ← Express REST API
-└── schema.sql           ← PostgreSQL database
-
-apps/admin-dashboard/    ← React Admin Dashboard
-└── src/                 ← Analytics & user management
-
-.github/workflows/       ← Automated builds
-└── release.yml          ← Build & release pipeline
-```
-
-### Build From Source
-
 ```bash
 # Clone repository
-git clone https://github.com/Maxxwell69/anvil-solo.git
-cd anvil-solo/anvil-solo
+git clone https://github.com/Maxxwell69/anvil3.0.git
+cd anvil3.0
 
-# Install dependencies
+# Install bot service
+cd bot
 npm install
 
-# Build application
-npm run build
+# Install swap service
+cd ../swap
+npm install
 
-# Run in development
-npm start
-
-# Package for production
-npm run package
+# Install admin dashboard
+cd ../apps/admin-dashboard
+npm install
 ```
 
-### Technologies
+### Configuration
 
-- **Electron** - Desktop framework
-- **TypeScript** - Type-safe development
-- **Solana Web3.js** - Blockchain integration
-- **Jupiter API** - DEX aggregation
-- **SQLite** - Local database
-- **PostgreSQL** - Cloud database
-- **Express** - REST API
-- **React** - Admin dashboard
+1. **Get Telegram Bot Token**
+   - Message @BotFather on Telegram
+   - Create new bot with `/newbot`
+   - Copy the token
+
+2. **Create Configuration Files**
+```bash
+# Bot config
+cp bot/src/config.example.json bot/src/config.json
+
+# Swap config
+cp swap/src/config.example.json swap/src/config.json
+
+# Edit both files with your credentials
+```
+
+3. **Set Environment Variables**
+```bash
+export TG_BOT_TOKEN="your_bot_token"
+export MONGODB_URL="mongodb://localhost:27017/anvil_bot_db"
+export RABBITMQ_URL="amqp://localhost:5672"
+export SOLANA_RPC_URL="https://api.mainnet-beta.solana.com"
+export ENCRYPTION_SALT="your_32_character_random_string"
+```
+
+4. **Start Services**
+```bash
+# Terminal 1 - Start MongoDB & RabbitMQ
+cd bot
+docker-compose up -d
+
+# Terminal 2 - Start Bot
+cd bot
+npm run dev
+
+# Terminal 3 - Start Swap Service
+cd swap
+npm run dev
+
+# Terminal 4 - Start Admin Dashboard
+cd apps/admin-dashboard
+npm start
+```
+
+5. **Test Bot**
+   - Open Telegram
+   - Send `/start` to your bot
+   - Send `/referral` to test referral system
 
 ---
 
-## 🛡️ Security
+## 🔒 Security Status
 
-### How We Protect You
+### Current Score: 4/10 ⚠️
 
-- ✅ **Private keys encrypted** with AES-256
-- ✅ **Local-only storage** - Never uploaded
-- ✅ **Password required** - User-controlled encryption
-- ✅ **Open source** - Audit the code yourself
-- ✅ **Hardware binding** - License tied to device
-- ✅ **Auto-updates** - Security patches delivered fast
+| Area | Score | Status |
+|------|-------|--------|
+| Authentication | 1/10 | 🔴 Critical |
+| Authorization | 1/10 | 🔴 Critical |
+| Input Validation | 3/10 | 🟡 Medium |
+| Secrets Management | 2/10 | 🟡 Medium |
+| Encryption | 8/10 | ✅ Good |
+| Infrastructure | 7/10 | ✅ Good |
 
-### What We Never Do
+### 🚨 Critical Issues (Fix Before Production)
 
-- ❌ Never store your private keys
-- ❌ Never send keys to servers
-- ❌ Never share your data
-- ❌ Never track your trades
-- ❌ Never have access to your funds
+1. **No Authentication Middleware**
+   - Admin API routes are completely unprotected
+   - Anyone can access sensitive endpoints
+   - **Fix:** Implement JWT middleware
 
-**You are always in control!**
+2. **Hardcoded Credentials**
+   - Admin credentials in plain text
+   - **Fix:** Use environment variables + bcrypt
+
+3. **Overly Permissive CORS**
+   - Allows all origins (`origin: "*"`)
+   - **Fix:** Whitelist specific domains
+
+4. **Sensitive Data in Logs**
+   - Private keys logged to console
+   - **Fix:** Implement proper logging with redaction
+
+5. **Insufficient Rate Limiting**
+   - Basic throttling only on swaps
+   - **Fix:** Add express-rate-limit to all endpoints
+
+6. **Basic Input Validation**
+   - Minimal validation on user inputs
+   - **Fix:** Implement Joi or express-validator
+
+### ✅ Security Strengths
+
+- ✅ Good encryption implementation (AES-256-GCM)
+- ✅ Mongoose ODM (NoSQL injection protection)
+- ✅ Kubernetes secrets management
+- ✅ Environment variable configuration
+- ✅ Docker container isolation
 
 ---
 
-## 🤝 Support
+## 📚 Documentation
 
-### Get Help
+### Main Documentation
+- **[Complete Project Summary](./ANVIL_BOT_PROJECT_SUMMARY.md)** - Comprehensive guide (12,000+ words)
+- **[Quick Start Prompt](./QUICK_START_PROMPT.txt)** - AI agent instructions
+- **[Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Kubernetes deployment
 
-- 📧 Email: support@anvil.trading
-- 💬 Discord: [Join our community](#)
-- 📝 Documentation: See links above
-- 🐛 Issues: [GitHub Issues](https://github.com/Maxxwell69/anvil-solo/issues)
-
-### Report a Bug
-
-Found a bug? [Create an issue](https://github.com/Maxxwell69/anvil-solo/issues/new)
+### Key Sections
+- [Configuration Requirements](./ANVIL_BOT_PROJECT_SUMMARY.md#configuration-requirements)
+- [Security Analysis](./ANVIL_BOT_PROJECT_SUMMARY.md#security-analysis)
+- [Referral System Details](./ANVIL_BOT_PROJECT_SUMMARY.md#features--capabilities)
+- [Troubleshooting Guide](./ANVIL_BOT_PROJECT_SUMMARY.md#troubleshooting)
 
 ---
 
-## 📊 Stats
+## 📊 Project Stats
+
+| Metric | Value |
+|--------|-------|
+| Total Files | 262 |
+| Lines of Code | 73,531+ |
+| Dependencies | 2,500+ packages |
+| Services | 5 microservices |
+| Languages | TypeScript, JavaScript |
+| Docker Images | 3 |
+
+---
+
+## 🛠️ Technology Stack
+
+### Backend
+- **Runtime:** Node.js with TypeScript
+- **Bot:** node-telegram-bot-api
+- **Blockchain:** @solana/web3.js, Raydium SDK
+- **Queue:** RabbitMQ (amqplib)
+- **Database:** MongoDB (Mongoose)
+- **API:** Express.js
+- **Auth:** JWT
+
+### Frontend
+- **Framework:** React 18
+- **State:** Redux Toolkit
+- **Routing:** React Router
+- **Styling:** CSS/SCSS
+- **HTTP:** Axios
+
+### DevOps
+- **Containers:** Docker
+- **Orchestration:** Kubernetes
+- **Package Manager:** Helm
+- **CI/CD:** GitHub Actions ready
+
+---
+
+## 🔄 Development Workflow
+
+```bash
+# Create feature branch
+git checkout -b feature/your-feature
+
+# Make changes and test
+npm run dev
+
+# Build and verify
+npm run build
+
+# Commit and push
+git add .
+git commit -m "feat: description"
+git push origin feature/your-feature
+
+# Create Pull Request on GitHub
+```
+
+---
+
+## ⚠️ Important Warnings
+
+### DO NOT:
+- ❌ Deploy without fixing authentication
+- ❌ Commit `config.json` or `.env` files
+- ❌ Use example credentials in production
+- ❌ Expose private keys in logs
+- ❌ Skip security hardening
+- ❌ Use `origin: "*"` in production
+
+### ALWAYS:
+- ✅ Test in development first
+- ✅ Use environment variables for secrets
+- ✅ Implement error handling
+- ✅ Monitor logs and metrics
+- ✅ Keep dependencies updated
+- ✅ Backup database regularly
+
+---
+
+## 📝 Next Steps
+
+### Before Production Deployment
+
+1. **Security Fixes** (2-3 days)
+   - [ ] Implement JWT authentication
+   - [ ] Remove hardcoded credentials
+   - [ ] Fix CORS configuration
+   - [ ] Add rate limiting
+   - [ ] Implement input validation
+   - [ ] Clean up logging
+
+2. **Testing** (1-2 days)
+   - [ ] Unit tests
+   - [ ] Integration tests
+   - [ ] E2E testing
+   - [ ] Load testing
+   - [ ] Security testing
+
+3. **Configuration** (1 day)
+   - [ ] Set up production RPC endpoints
+   - [ ] Configure MongoDB Atlas
+   - [ ] Set up CloudAMQP
+   - [ ] Generate secure secrets
+   - [ ] Configure monitoring
+
+4. **Deployment** (1-2 days)
+   - [ ] Build Docker images
+   - [ ] Push to container registry
+   - [ ] Configure Kubernetes cluster
+   - [ ] Deploy with Helm
+   - [ ] Set up monitoring
+
+**Estimated Time to Production:** ~1 week
+
+---
+
+## 🤝 Contributing
+
+This is currently a private project. If you're a developer working on this:
+
+1. Read the full [Project Summary](./ANVIL_BOT_PROJECT_SUMMARY.md)
+2. Review [Security Issues](#security-status)
+3. Create feature branch from `development`
+4. Make changes with proper testing
+5. Submit Pull Request with detailed description
+
+---
+
+## 📞 Support
+
+### Issues
+- GitHub Issues: https://github.com/Maxxwell69/anvil3.0/issues
+
+### Resources
+- [Solana Documentation](https://docs.solana.com/)
+- [Telegram Bot API](https://core.telegram.org/bots/api)
+- [MongoDB Docs](https://docs.mongodb.com/)
+- [RabbitMQ Docs](https://www.rabbitmq.com/documentation.html)
+
+---
+
+## 📄 License
+
+Review license requirements before commercial use.
+
+---
+
+## 🙏 Acknowledgments
+
+- Original project: [ShogunEX/anvil-bot](https://github.com/ShogunEX/anvil-bot)
+- Solana community
+- Raydium protocol
+- Telegram Bot API
+
+---
 
 <div align="center">
 
-![Downloads](https://img.shields.io/github/downloads/Maxxwell69/anvil-solo/total?style=flat-square)
-![Stars](https://img.shields.io/github/stars/Maxxwell69/anvil-solo?style=flat-square)
-![Issues](https://img.shields.io/github/issues/Maxxwell69/anvil-solo?style=flat-square)
-![License](https://img.shields.io/github/license/Maxxwell69/anvil-solo?style=flat-square)
+**⚠️ Production Deployment Status: NOT READY**
+
+**Security fixes required. See [Security Status](#security-status) for details.**
+
+---
+
+Made with ❤️ for the Solana community
 
 </div>
-
----
-
-## 🎯 Roadmap
-
-### ✅ Released (v1.0.0)
-- Multi-wallet support
-- DCA/Ratio/Bundle strategies
-- Token manager
-- License system
-- Auto-updates
-- Transaction fees
-
-### 🚧 Coming Soon
-- Mobile app (iOS/Android)
-- More strategy types
-- Social trading features
-- API for custom strategies
-- White-label option
-
-### 💡 Under Consideration
-- Multi-chain support (Ethereum, BSC)
-- Copy trading
-- Strategy marketplace
-- Team/collaboration features
-
----
-
-## 📜 License
-
-This software is **commercial** and requires a valid license to use.
-
-- Free tier available for evaluation
-- Paid tiers for full features
-- See [Pricing](#pricing) for details
-
----
-
-## 🙏 Credits
-
-Built with ❤️ by the Anvil team
-
-### Powered By
-
-- [Solana](https://solana.com) - Blockchain platform
-- [Jupiter](https://jup.ag) - DEX aggregator
-- [Electron](https://electronjs.org) - Desktop framework
-- [Railway](https://railway.app) - Cloud hosting
-
----
-
-## ⚠️ Disclaimer
-
-**This software is for educational and research purposes.**
-
-- Cryptocurrency trading involves substantial risk
-- Only invest what you can afford to lose
-- Past performance is not indicative of future results
-- We are not financial advisors
-- Use at your own risk
-
----
-
-## 🌟 Star Us!
-
-If you find Anvil Solo useful, please ⭐ star this repository!
-
----
-
-<div align="center">
-
-**[Download Now](#download)** • **[Get License](https://anvil.trading)** • **[Documentation](#documentation)**
-
-Made with ⚡ by Anvil Labs
-
-</div>
-
-
