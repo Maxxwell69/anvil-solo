@@ -1,1 +1,0 @@
-# Shogunex admin frontend
