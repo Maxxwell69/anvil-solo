@@ -28,6 +28,8 @@ export interface RatioProgress {
   currentTokenBalance: number;
   lastTradeTime?: number;
   lastRebalanceTime?: number;
+  isReversed: boolean; // NEW: Track if ratio is reversed
+  reversalCount: number; // NEW: Track how many times reversed
 }
 
 export class RatioStrategy {
@@ -56,6 +58,8 @@ export class RatioStrategy {
       sellTrades: 0,
       volumeProcessedToday: 0,
       currentTokenBalance: 0,
+      isReversed: false, // Start with normal ratio
+      reversalCount: 0, // Track reversals
     };
   }
 
@@ -123,9 +127,13 @@ export class RatioStrategy {
    * Execute a single trade
    */
   private async executeSingleTrade(baseAmount: number): Promise<void> {
-    // Determine direction based on ratio
+    // Check if we need to reverse the ratio due to resource constraints
+    await this.checkAndReverseRatio();
+    
+    // Determine direction based on current ratio (may be reversed)
     const roll = Math.random() * 100;
-    const direction = roll < this.config.buyRatio ? 'buy' : 'sell';
+    const currentBuyRatio = this.progress.isReversed ? this.config.sellRatio : this.config.buyRatio;
+    const direction = roll < currentBuyRatio ? 'buy' : 'sell';
 
     // Randomize amount if enabled
     let amount = baseAmount;
@@ -255,6 +263,67 @@ export class RatioStrategy {
       } catch (error: any) {
         console.error(`   ❌ Rebalance failed:`, error.message);
       }
+    }
+  }
+
+  /**
+   * Check balances and reverse ratio if needed
+   * If SOL runs out → flip to selling (builds SOL back up)
+   * If tokens run out → flip to buying (accumulates tokens)
+   */
+  private async checkAndReverseRatio(): Promise<void> {
+    try {
+      // Get current SOL balance
+      const solBalance = await this.wallet.getBalance(
+        this.wallet.getMainKeypair().publicKey.toBase58()
+      );
+      
+      // Get current token balance
+      await this.updateCurrentBalance();
+      
+      const MIN_SOL_REQUIRED = 0.01; // Need at least 0.01 SOL for gas + trades
+      const MIN_TOKEN_REQUIRED = 0.001; // Minimum tokens to continue selling
+      
+      // Scenario 1: Running out of SOL (can't buy anymore)
+      if (solBalance < MIN_SOL_REQUIRED && !this.progress.isReversed) {
+        console.log(`⚠️  LOW SOL WARNING: ${solBalance.toFixed(4)} SOL remaining`);
+        console.log(`🔄 REVERSING RATIO: Was ${this.config.buyRatio}% buy → Now ${this.config.buyRatio}% SELL`);
+        console.log(`   Strategy will now SELL to build SOL back up!`);
+        
+        this.progress.isReversed = true;
+        this.progress.reversalCount++;
+        await this.updateProgress();
+      }
+      
+      // Scenario 2: Running out of tokens (can't sell anymore)
+      else if (this.progress.currentTokenBalance < MIN_TOKEN_REQUIRED && this.progress.isReversed) {
+        console.log(`⚠️  LOW TOKEN WARNING: ${this.progress.currentTokenBalance.toFixed(4)} tokens remaining`);
+        console.log(`🔄 REVERSING BACK: Was ${this.config.buyRatio}% sell → Now ${this.config.buyRatio}% BUY`);
+        console.log(`   Strategy will now BUY to accumulate tokens!`);
+        
+        this.progress.isReversed = false;
+        this.progress.reversalCount++;
+        await this.updateProgress();
+      }
+      
+      // Scenario 3: SOL recovered - can go back to normal
+      else if (solBalance > MIN_SOL_REQUIRED * 3 && this.progress.isReversed) {
+        console.log(`✅ SOL RECOVERED: ${solBalance.toFixed(4)} SOL available`);
+        console.log(`🔄 REVERSING BACK TO NORMAL: ${this.config.buyRatio}% buy / ${this.config.sellRatio}% sell`);
+        
+        this.progress.isReversed = false;
+        this.progress.reversalCount++;
+        await this.updateProgress();
+      }
+      
+      // Scenario 4: Tokens recovered - can switch back
+      else if (this.progress.currentTokenBalance > MIN_TOKEN_REQUIRED * 3 && !this.progress.isReversed && this.progress.reversalCount > 0) {
+        // Only log if we've previously reversed
+        console.log(`✅ TOKENS RECOVERED: ${this.progress.currentTokenBalance.toFixed(4)} tokens available`);
+      }
+      
+    } catch (error: any) {
+      console.error('Failed to check balances for ratio reversal:', error.message);
     }
   }
 
