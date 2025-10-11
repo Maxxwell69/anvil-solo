@@ -4,221 +4,177 @@
 
 ![Status](https://img.shields.io/badge/Status-Ready-green)
 ![Platform](https://img.shields.io/badge/Platform-Desktop-blue)
-![No Telegram](https://img.shields.io/badge/Telegram-Not_Required-red)
+![License](https://img.shields.io/badge/License-MVP_Unlimited-gold)
 
-**A powerful desktop application for automated Solana token trading**
+**Solana Token Trading Bot - NO Telegram Required**
 
-**NO Telegram • NO Cloud Services • 100% Local**
+**Desktop-Only • Unlimited Features • Free MVP**
 
 </div>
 
 ---
 
-## ⚡ What is Anvil Solo?
+## ⚡ **START THE APP:**
 
-Anvil Solo is a **desktop-only** trading bot for Solana tokens. It runs entirely on your computer with no Telegram dependency.
+### **From File Explorer (Easiest):**
+1. Press `Windows + E`
+2. Navigate to: `C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo`
+3. **Double-click:** `run.bat`
 
-### ✨ Key Features
+### **From Command Line:**
+```powershell
+cd C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo
+node start-app.js
+```
 
-- 🖥️ **Desktop Application** - Windows, Mac, Linux
-- 🔐 **Password Protected** - Your keys, encrypted locally
-- 📊 **Real-time Dashboard** - Live balance and stats
-- 💱 **DCA Trading** - Dollar-cost averaging strategies
-- 📈 **Ratio Trading** - Volume generation with buy/sell ratios
-- 📦 **Bundle Trading** - Rapid multi-trade execution
-- 💰 **Multi-wallet Support** - Derived wallets for volume
-- 🎨 **Beautiful UI** - Modern dark theme with purple accents
+**That's it! The app will open!** 🚀
 
 ---
 
-## 🚀 Quick Start
+## ✨ **What You Get (MVP - Unlimited & Free):**
 
-### Prerequisites
-```bash
-Node.js 16+
-```
+- 🖥️ **Desktop Application** - Windows/Mac/Linux
+- ♾️ **Unlimited Strategies** - Create as many as you want
+- ♾️ **Unlimited Wallets** - Generate as many as you need
+- 💱 **Jupiter Swaps** - Works with ALL Solana DEXs
+- 🎯 **All Strategy Types:**
+  - **DCA** - Dollar-cost averaging
+  - **Ratio** - Volume generation with buy/sell ratios
+  - **Bundle** - Rapid multi-trade execution
+- 🔐 **Secure** - Keys encrypted locally, never leave your computer
+- 🆓 **No License Required** - MVP mode enabled
 
-### Installation & Launch
+---
+
+## 💱 **Swap System (Fully Integrated!):**
+
+### ✅ **Jupiter Aggregator** - Built In
+- Routes through **ALL DEXs** (Raydium, Pump.fun, Orca, Meteora, Phoenix)
+- **Token Validation** - Checks if tradeable
+- **Price Checking** - Real-time prices
+- **Automatic Routing** - Finds best price
+- **Fallback URLs** - High reliability
+
+### ✅ **Supported:**
+- Standard SPL tokens
+- Token-2022 (new standard)
+- Pump.fun meme coins
+- DeFi tokens
+- Stablecoins
+- Any Solana token!
+
+---
+
+## 🚀 **Quick Start:**
+
+1. **Start app** (double-click `anvil-solo/run.bat`)
+2. **Generate wallet** (click "Generate New Wallet")
+3. **Add SOL** (send 0.01-0.1 SOL to your address)
+4. **Create strategy:**
+   - Click "DCA Strategy"
+   - Paste token address (e.g., BONK: `DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263`)
+   - Set amount, orders, interval
+   - Click "Create"
+5. **Watch it trade!** ✅
+
+---
+
+## 📚 **Full Documentation:**
+
+Everything is in the `anvil-solo/` folder:
+
+- **[START_HERE.md](./anvil-solo/START_HERE.md)** - Complete guide
+- **[QUICKSTART.md](./anvil-solo/QUICKSTART.md)** - Quick tutorial
+- **[UI_GUIDE.md](./anvil-solo/UI_GUIDE.md)** - UI walkthrough
+- **[SWAP_SYSTEM_EXPLAINED.md](./anvil-solo/SWAP_SYSTEM_EXPLAINED.md)** - How swaps work
+- **[APP_STATUS_AND_NEXT_STEPS.md](./APP_STATUS_AND_NEXT_STEPS.md)** - Current status
+
+---
+
+## 🔒 **Security:**
+
+- ✅ Private keys stored locally, encrypted
+- ✅ No cloud dependencies for wallet
+- ✅ Keys never sent to external servers
+- ✅ Open source - audit the code
+- ✅ No Telegram, no third parties
+
+---
+
+## ☁️ **Cloud Services (Optional):**
+
+Located in `cloud-services/` folder - for future monetization:
+- License validation system
+- Cloud strategy execution
+- Data storage
+- Ready to deploy to Railway
+
+**Not needed for MVP!** App works 100% locally.
+
+---
+
+## 📦 **To Build Installer:**
 
 ```powershell
 cd anvil-solo
-npm install
-npm run build
-npm start
+npm run package
 ```
 
-**That's it!** The desktop app will open.
+Creates: `release/Anvil Solo Setup 1.0.0.exe`
+
+Share this with anyone - they can use it for free!
 
 ---
 
-## 📚 Complete Documentation
+## 💻 **System Requirements:**
 
-Everything you need is in the `anvil-solo/` folder:
-
-### Essential Guides
-- 📖 **[START_HERE.md](./anvil-solo/START_HERE.md)** - Complete setup guide
-- ⚡ **[QUICKSTART.md](./anvil-solo/QUICKSTART.md)** - Quick tutorial
-- 🎨 **[UI_GUIDE.md](./anvil-solo/UI_GUIDE.md)** - User interface walkthrough
-- 🚀 **[LAUNCH_SUCCESS.md](./anvil-solo/LAUNCH_SUCCESS.md)** - Feature overview
-- 📘 **[README.md](./anvil-solo/README.md)** - Full documentation
+- Windows 10+, macOS 10.13+, or Ubuntu 18.04+
+- Node.js 18+ (for running from source)
+- 4GB RAM minimum
+- Internet connection (for blockchain)
 
 ---
 
-## 🎯 What You Can Do
+## 🎯 **What Works:**
 
-### 1. DCA Strategy
-- Schedule automatic buys/sells
-- Set custom intervals (every 5 min, hourly, daily)
-- Split total amount across multiple orders
-- Perfect for accumulating positions
-
-### 2. Ratio Trading
-- Generate trading volume organically
-- Maintain specific buy/sell ratios (e.g., 60/40)
-- Randomize trade sizes and timing
-- Keep target token balance
-
-### 3. Bundle Trading
-- Execute rapid sequential trades
-- Rotate through multiple wallets
-- Configurable trade counts
-- Great for testing or volume
-
-### 4. Wallet Management
-- Generate new Solana wallets
-- Import existing wallets
-- Create derived wallets (up to 10)
-- View balances in real-time
-- Encrypted storage
+✅ Wallet generation/import  
+✅ DCA strategies  
+✅ Ratio trading  
+✅ Bundle trading  
+✅ Jupiter swaps (all DEXs)  
+✅ Token validation  
+✅ Multi-wallet support  
+✅ Activity logging  
+✅ Real-time balance updates  
 
 ---
 
-## 🔒 Security
+## 📞 **Support:**
 
-### Your Keys, Your Control
-- ✅ All private keys stored **locally** and encrypted
-- ✅ AES-256-GCM encryption
-- ✅ Password-protected access
-- ✅ No cloud services
-- ✅ No data sent to external servers
-- ✅ Open source - audit the code yourself
-
-### What We DON'T Do
-- ❌ No Telegram integration
-- ❌ No cloud storage
-- ❌ No external dependencies for keys
-- ❌ No user tracking
-- ❌ No data collection
+- GitHub Issues: https://github.com/Maxxwell69/anvil-solo/issues
+- Documentation: See `anvil-solo/` folder
 
 ---
 
-## 💻 System Requirements
+## ⚠️ **Disclaimer:**
 
-### Minimum
-- **OS:** Windows 10+, macOS 10.13+, Ubuntu 18.04+
-- **RAM:** 4 GB
-- **Storage:** 500 MB
-- **Internet:** Required for blockchain RPC
-
-### Recommended
-- **RAM:** 8 GB+
-- **Storage:** 1 GB+
-- **Internet:** Stable connection for best performance
-
----
-
-## 🛠️ Development
-
-### Tech Stack
-- **Runtime:** Electron
-- **Language:** TypeScript
-- **Blockchain:** Solana Web3.js
-- **DEX:** Jupiter Aggregator
-- **Database:** SQLite (local)
-- **UI:** HTML/CSS/JavaScript
-
-### Build Commands
-```bash
-npm run build      # Compile TypeScript
-npm run dev        # Development mode with hot reload
-npm start          # Production mode
-npm run package    # Create distributable
-```
-
----
-
-## 📖 Learning Resources
-
-### Documentation
-- [Anvil Solo Complete Guide](./anvil-solo/START_HERE.md)
-- [UI User Guide](./anvil-solo/UI_GUIDE.md)
-- [Quick Start Tutorial](./anvil-solo/QUICKSTART.md)
-
-### External
-- [Solana Documentation](https://docs.solana.com/)
-- [Jupiter Aggregator](https://station.jup.ag/docs)
-- [Electron Docs](https://www.electronjs.org/docs)
-
----
-
-## 🎯 Use Cases
-
-Perfect for:
-- 📈 **DCA Investors** - Automate your accumulation strategy
-- 💹 **Volume Traders** - Generate organic trading activity
-- 🎮 **Market Makers** - Maintain liquidity
-- 🧪 **Token Launchers** - Test your token's trading
-- 💰 **Serious Traders** - Full control, no middleman
-
----
-
-## ⚠️ Disclaimer
-
-This software is provided "as is" without warranty. Use at your own risk. 
-
-- Cryptocurrency trading involves risk
-- Test with small amounts first
-- Only invest what you can afford to lose
-- Not financial advice
-
----
-
-## 🤝 Contributing
-
-This is a personal project. If you'd like to contribute:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-## 📞 Support
-
-For issues or questions:
-- Create an issue on GitHub
-- Check the documentation in `anvil-solo/`
-
----
-
-## 📄 License
-
-Review license terms before commercial use.
+Cryptocurrency trading involves risk. Use at your own risk. Not financial advice.
 
 ---
 
 <div align="center">
 
-**🎉 Ready to start trading?**
+**🎉 Ready to Trade!**
 
 ```bash
-cd anvil-solo && npm start
+cd anvil-solo
+node start-app.js
 ```
 
-**Desktop-only. No Telegram. Full control.** 🚀
+**Desktop-only. No Telegram. Unlimited features. Free MVP.** 🚀
 
 ---
 
-Made for serious Solana traders
+Repository: https://github.com/Maxxwell69/anvil-solo
 
 </div>
