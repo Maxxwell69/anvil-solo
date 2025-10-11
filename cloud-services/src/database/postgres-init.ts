@@ -3,16 +3,16 @@ import postgres from 'postgres';
 let sql: any;
 
 export async function initDatabase() {
-  // Railway provides DATABASE_URL when PostgreSQL is added
+  // Railway provides DATABASE_URL automatically when you add PostgreSQL
   const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/anvil';
   
   sql = postgres(connectionString, {
-    max: 10,
+    max: 10, // Connection pool size
     idle_timeout: 20,
     connect_timeout: 10,
   });
   
-  // Create tables (PostgreSQL syntax)
+  // Create tables
   await sql`
     CREATE TABLE IF NOT EXISTS licenses (
       id SERIAL PRIMARY KEY,
@@ -40,7 +40,8 @@ export async function initDatabase() {
       config JSONB NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       last_executed TIMESTAMP,
-      total_trades INTEGER DEFAULT 0
+      total_trades INTEGER DEFAULT 0,
+      FOREIGN KEY (license_key) REFERENCES licenses(license_key)
     )
   `;
   
@@ -55,7 +56,9 @@ export async function initDatabase() {
       price DECIMAL,
       signature TEXT,
       status TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (license_key) REFERENCES licenses(license_key),
+      FOREIGN KEY (strategy_id) REFERENCES strategy_executions(id)
     )
   `;
   
@@ -65,7 +68,8 @@ export async function initDatabase() {
       license_key TEXT UNIQUE NOT NULL,
       settings JSONB,
       preferences JSONB,
-      last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (license_key) REFERENCES licenses(license_key)
     )
   `;
   
@@ -75,7 +79,8 @@ export async function initDatabase() {
       license_key TEXT NOT NULL,
       event_type TEXT NOT NULL,
       event_data JSONB,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (license_key) REFERENCES licenses(license_key)
     )
   `;
   
@@ -99,3 +104,4 @@ export function getDatabase() {
 }
 
 export default { initDatabase, getDatabase };
+
