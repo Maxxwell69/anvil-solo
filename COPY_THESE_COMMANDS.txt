@@ -1,0 +1,33 @@
+================================================================================
+COPY AND PASTE THESE COMMANDS INTO YOUR TERMINAL
+================================================================================
+
+Step 1: Navigate to the correct folder
+---------------------------------------
+cd C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo
+
+
+Step 2: Start the app
+---------------------
+node start-app.js
+
+
+That's it! The app should open!
+
+================================================================================
+
+ALTERNATIVE: If the above doesn't work, try this:
+---------------------------------------
+cd C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo
+npm start
+
+================================================================================
+
+EASIEST WAY: Use File Explorer
+---------------------------------------
+1. Press Windows Key + E
+2. Go to: C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo
+3. Double-click: run.bat
+
+================================================================================
+
