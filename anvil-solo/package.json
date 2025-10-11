@@ -63,7 +63,6 @@
     "@types/node-cron": "^3.0.11",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "@types/node-machine-id": "^1.1.4",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "electron-rebuild": "^3.2.9",

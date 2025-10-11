@@ -15,7 +15,7 @@
  */
 
 import { machineId } from 'node-machine-id';
-import fetch from 'node-fetch';
+import fetch from 'cross-fetch';
 
 // Cloud API configuration
 const CLOUD_API_URL = process.env.CLOUD_API_URL || 'http://localhost:3000';
@@ -169,8 +169,8 @@ class CloudClient {
     try {
       const response = await fetch(`${this.apiUrl}/health`);
       return response.json();
-    } catch (err) {
-      return { status: 'error', error: err.message };
+    } catch (err: any) {
+      return { status: 'error', error: err?.message || 'Unknown error' };
     }
   }
 }
