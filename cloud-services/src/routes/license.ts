@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { getDatabase } from '../database/init.js';
+import { getDatabase } from '../database/postgres-init.js';
 import Joi from 'joi';
 
 const router = express.Router();

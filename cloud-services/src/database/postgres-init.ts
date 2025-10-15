@@ -167,8 +167,93 @@ export async function initDatabase() {
   await sql`CREATE INDEX IF NOT EXISTS idx_fees_timestamp ON fee_collections(timestamp DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_fees_wallet ON fee_collections(from_wallet)`;
   
+  // License tiers configuration table
+  await sql`
+    CREATE TABLE IF NOT EXISTS license_tiers (
+      id SERIAL PRIMARY KEY,
+      tier_name TEXT UNIQUE NOT NULL,
+      tier_display_name TEXT NOT NULL,
+      description TEXT,
+      price_monthly DECIMAL(10, 2) DEFAULT 0,
+      price_yearly DECIMAL(10, 2) DEFAULT 0,
+      is_active BOOLEAN DEFAULT true,
+      features JSONB NOT NULL DEFAULT '{}'::jsonb,
+      max_concurrent_strategies INTEGER DEFAULT 1,
+      max_wallets INTEGER DEFAULT 1,
+      max_daily_trades INTEGER DEFAULT 10,
+      trade_fee_percentage DECIMAL(5, 2) DEFAULT 0,
+      fee_recipient_wallet TEXT,
+      can_use_advanced_strategies BOOLEAN DEFAULT false,
+      can_cloud_sync BOOLEAN DEFAULT false,
+      support_level TEXT DEFAULT 'community',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  // Insert default tiers if not exist
+  await sql`
+    INSERT INTO license_tiers (
+      tier_name, tier_display_name, description, 
+      price_monthly, price_yearly, features,
+      max_concurrent_strategies, max_wallets, max_daily_trades,
+      trade_fee_percentage, fee_recipient_wallet,
+      can_use_advanced_strategies, can_cloud_sync, support_level
+    ) VALUES
+    (
+      'free', 'Free Trial', '30-day free trial with basic features',
+      0.00, 0.00,
+      '{"strategies": ["basic"], "indicators": ["rsi", "macd"], "auto_trading": false}'::jsonb,
+      1, 1, 10,
+      10.00, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      false, false, 'community'
+    ),
+    (
+      'pro', 'Professional', 'Full-featured trading bot',
+      49.99, 499.99,
+      '{"strategies": ["basic", "advanced", "smart_ratio", "dca"], "indicators": ["all"], "auto_trading": true}'::jsonb,
+      5, 3, 100,
+      5.00, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      true, true, 'priority'
+    ),
+    (
+      'enterprise', 'Enterprise', 'Unlimited with 24/7 support',
+      199.99, 1999.99,
+      '{"strategies": ["all"], "indicators": ["all"], "auto_trading": true, "custom_strategies": true}'::jsonb,
+      99, 10, 1000,
+      2.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      true, true, '24/7'
+    )
+    ON CONFLICT (tier_name) DO NOTHING
+  `;
+
+  // Trade fees tracking table
+  await sql`
+    CREATE TABLE IF NOT EXISTS trade_fees (
+      id SERIAL PRIMARY KEY,
+      license_key TEXT NOT NULL,
+      trade_signature TEXT NOT NULL,
+      token_in TEXT NOT NULL,
+      token_out TEXT NOT NULL,
+      amount_in DECIMAL NOT NULL,
+      amount_out DECIMAL NOT NULL,
+      fee_percentage DECIMAL(5, 2) NOT NULL,
+      fee_amount_sol DECIMAL NOT NULL,
+      fee_recipient_wallet TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      tier TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      processed_at TIMESTAMP,
+      UNIQUE(trade_signature)
+    )
+  `;
+
+  await sql`CREATE INDEX IF NOT EXISTS idx_trade_fees_license ON trade_fees(license_key)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_trade_fees_status ON trade_fees(status)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_license_tiers_active ON license_tiers(is_active)`;
+
   console.log('✅ PostgreSQL database initialized successfully');
-  console.log('   📋 Tables: users, licenses, strategies, trades, user_data, analytics, archives, fees');
+  console.log('   📋 Tables: users, licenses, license_tiers, strategies, trades, trade_fees, archives');
   
   return sql;
 }
