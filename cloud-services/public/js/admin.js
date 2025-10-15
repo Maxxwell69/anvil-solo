@@ -386,9 +386,10 @@ function showGenerateLicenseModal() {
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2">Tier</label>
                     <select id="licenseTier" required class="w-full px-4 py-2 border rounded">
-                        <option value="free">Free</option>
-                        <option value="pro" selected>Professional</option>
-                        <option value="enterprise">Enterprise</option>
+                        <option value="free">Free - 1 DCA only</option>
+                        <option value="tier1" selected>Tier 1 - 2 DCA + 1 Ratio + Cloud Sync ($29.99/mo)</option>
+                        <option value="tier2">Tier 2 - 3 DCA + 3 Ratio + 3 Bundle ($59.99/mo)</option>
+                        <option value="tier3">Tier 3 - Unlimited All ($99.99/mo)</option>
                     </select>
                 </div>
                 <div class="mb-4">
