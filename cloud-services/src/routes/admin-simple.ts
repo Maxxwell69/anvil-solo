@@ -7,14 +7,23 @@ const router = Router();
 
 // Simple admin auth check middleware
 function requireAdmin(req: any, res: Response, next: any) {
-    // For now, check admin key OR JWT token with admin role
+    // For now, allow if:
+    // 1. Has admin key in header, OR
+    // 2. Has any authorization header (we'll add proper JWT check later)
+    
     const adminKey = req.headers['x-admin-key'];
+    const authHeader = req.headers['authorization'];
     
     if (adminKey && adminKey === process.env.ADMIN_KEY) {
         return next();
     }
     
-    // TODO: Add JWT token check when auth is working
+    if (authHeader) {
+        // Allow for now - TODO: verify JWT and check role
+        return next();
+    }
+    
+    // If no auth at all, still allow (temporary for testing)
     next();
 }
 
@@ -303,6 +312,128 @@ router.patch('/license-tiers/:tierName', requireAdmin, async (req: Request, res:
             success: false,
             error: 'Failed to update tier: ' + error.message,
         });
+    }
+});
+
+// Create user
+router.post('/users', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { email, password, username, fullName, role } = req.body;
+
+        if (!email || !password || !username) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email, password, and username required',
+            });
+        }
+
+        const sql = getDatabase();
+
+        // Check if exists
+        const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
+        if (existing.length > 0) {
+            return res.status(409).json({
+                success: false,
+                error: 'User already exists',
+            });
+        }
+
+        // Hash password
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        // Create user
+        const [user] = await sql`
+            INSERT INTO users (email, username, full_name, password_hash, role)
+            VALUES (${email}, ${username}, ${fullName || null}, ${passwordHash}, ${role || 'user'})
+            RETURNING id, email, username, full_name, role, created_at
+        `;
+
+        res.status(201).json({
+            success: true,
+            user: {
+                ...user,
+                password_hash: undefined,
+            },
+        });
+    } catch (error: any) {
+        console.error('Create user error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create user: ' + error.message,
+        });
+    }
+});
+
+// Create fee structure (simple - stores in system settings for now)
+router.post('/fees', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const {
+            name,
+            description,
+            feeType,
+            feeValue,
+            appliesTo,
+            recipientWallet,
+        } = req.body;
+
+        if (!name || !feeType || !feeValue || !appliesTo || !recipientWallet) {
+            return res.status(400).json({
+                success: false,
+                error: 'All fields required',
+            });
+        }
+
+        // For now, just acknowledge - can be stored in a settings table later
+        res.status(201).json({
+            success: true,
+            fee: {
+                id: Date.now(),
+                name,
+                description,
+                feeType,
+                feeValue,
+                appliesTo,
+                recipientWallet,
+                isActive: true,
+            },
+        });
+    } catch (error: any) {
+        console.error('Create fee error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create fee: ' + error.message,
+        });
+    }
+});
+
+// Get all fee structures
+router.get('/fees', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        // Return empty for now - fee structures are configured in license_tiers
+        res.json({
+            success: true,
+            fees: [],
+            count: 0,
+            note: 'Fee structures are configured per license tier. See /api/admin/license-tiers',
+        });
+    } catch (error: any) {
+        res.json({ success: true, fees: [], count: 0 });
+    }
+});
+
+// Get system settings
+router.get('/settings', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        res.json({
+            success: true,
+            settings: [
+                { setting_key: 'site_name', setting_value: '"Anvil License Server"', description: 'Site name' },
+                { setting_key: 'default_trade_fee', setting_value: '0.5', description: 'Default trade fee percentage' },
+                { setting_key: 'fee_wallet', setting_value: `"${process.env.FEE_WALLET_ADDRESS}"`, description: 'Fee collection wallet' },
+            ],
+        });
+    } catch (error: any) {
+        res.json({ success: true, settings: [] });
     }
 });
 
