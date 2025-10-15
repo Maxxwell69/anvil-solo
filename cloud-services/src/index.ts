@@ -15,6 +15,7 @@ import archiveRouter from './routes/archive.js';
 import feesRouter from './routes/fees.js';
 import authRouter from './routes/auth-simple.js';
 import adminSetupRouter from './routes/admin-setup.js';
+import adminSimpleRouter from './routes/admin-simple.js';
 import { initDatabase } from './database/postgres-init.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -76,6 +77,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // API Routes
 app.use('/api/admin-setup', adminSetupRouter);
+app.use('/api/admin', adminSimpleRouter); // Admin management endpoints
 app.use('/api/auth', authRouter);
 app.use('/api/license', licenseRouter);
 app.use('/api/license', licenseEnhancedRouter); // Enhanced validation with features
