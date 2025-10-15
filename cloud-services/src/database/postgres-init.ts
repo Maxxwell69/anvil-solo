@@ -12,6 +12,21 @@ export async function initDatabase() {
     connect_timeout: 10,
   });
   
+  // Create users table first
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      username TEXT UNIQUE NOT NULL,
+      full_name TEXT,
+      role TEXT DEFAULT 'user',
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_login TIMESTAMP
+    )
+  `;
+
   // Create tables
   await sql`
     CREATE TABLE IF NOT EXISTS licenses (
@@ -153,7 +168,7 @@ export async function initDatabase() {
   await sql`CREATE INDEX IF NOT EXISTS idx_fees_wallet ON fee_collections(from_wallet)`;
   
   console.log('✅ PostgreSQL database initialized successfully');
-  console.log('   📋 Tables: licenses, strategies, trades, user_data, analytics, archives, fees');
+  console.log('   📋 Tables: users, licenses, strategies, trades, user_data, analytics, archives, fees');
   
   return sql;
 }
