@@ -11,6 +11,7 @@ import dataRouter from './routes/data.js';
 import archiveRouter from './routes/archive.js';
 import feesRouter from './routes/fees.js';
 import authRouter from './routes/auth-simple.js';
+import setupRouter from './routes/setup.js';
 import { initDatabase } from './database/postgres-init.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,6 +72,7 @@ app.get('/health', (req, res) => {
 app.use(express.static(path.join(__dirname, '../public')));
 
 // API Routes
+app.use('/api/setup', setupRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/license', licenseRouter);
 app.use('/api/data', dataRouter);
