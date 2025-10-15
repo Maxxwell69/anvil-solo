@@ -220,7 +220,7 @@ export async function initDatabase() {
         "max_active_total": 1
       }'::jsonb,
       1, 1, 20,
-      10.00, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       false, false, 'community'
     ),
     (
@@ -243,7 +243,7 @@ export async function initDatabase() {
         "max_active_total": 3
       }'::jsonb,
       3, 2, 100,
-      7.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, 'email'
     ),
     (
@@ -266,7 +266,7 @@ export async function initDatabase() {
         "max_active_total": 9
       }'::jsonb,
       9, 3, 500,
-      5.00, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, 'priority'
     ),
     (
@@ -290,7 +290,7 @@ export async function initDatabase() {
         "max_active_total": 999
       }'::jsonb,
       999, 10, 9999,
-      2.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, '24/7'
     )
     ON CONFLICT (tier_name) DO NOTHING
