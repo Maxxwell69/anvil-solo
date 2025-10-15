@@ -52,6 +52,15 @@ export async function initDatabase() {
     )
   `;
 
+  // Add fee override columns if table already exists (for existing deployments)
+  try {
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS fee_override_percentage DECIMAL(5, 2) DEFAULT NULL`;
+    await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS fee_notes TEXT`;
+  } catch (err) {
+    // Columns might already exist, ignore error
+    console.log('Fee override columns already exist or added');
+  }
+
   // Create tables
   await sql`
     CREATE TABLE IF NOT EXISTS licenses (
