@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +10,7 @@ import licenseRouter from './routes/license.js';
 import dataRouter from './routes/data.js';
 import archiveRouter from './routes/archive.js';
 import feesRouter from './routes/fees.js';
+import authRouter from './routes/auth-simple.js';
 import { initDatabase } from './database/postgres-init.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,6 +52,7 @@ app.use(limiter);
 // Body parser
 app.use(express.json({ limit: '10mb' })); // Increased for archive data
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Initialize database
 await initDatabase();
@@ -68,6 +71,7 @@ app.get('/health', (req, res) => {
 app.use(express.static(path.join(__dirname, '../public')));
 
 // API Routes
+app.use('/api/auth', authRouter);
 app.use('/api/license', licenseRouter);
 app.use('/api/data', dataRouter);
 app.use('/api/archive', archiveRouter);
