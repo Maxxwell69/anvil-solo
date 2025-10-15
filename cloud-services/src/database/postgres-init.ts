@@ -12,7 +12,30 @@ export async function initDatabase() {
     connect_timeout: 10,
   });
   
-  // Create users table first
+  // System settings table (must be first for default values)
+  await sql`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      id SERIAL PRIMARY KEY,
+      setting_key TEXT UNIQUE NOT NULL,
+      setting_value TEXT NOT NULL,
+      setting_type TEXT DEFAULT 'string',
+      description TEXT,
+      category TEXT DEFAULT 'general',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  // Insert default settings
+  await sql`
+    INSERT INTO system_settings (setting_key, setting_value, setting_type, description, category)
+    VALUES 
+      ('default_trade_fee_percentage', '0.5', 'decimal', 'Default trade fee % for all trades', 'fees'),
+      ('fee_wallet_address', '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd', 'string', 'Primary fee collection wallet', 'fees'),
+      ('site_name', 'Anvil License Server', 'string', 'Website name', 'general')
+    ON CONFLICT (setting_key) DO NOTHING
+  `;
+
+  // Create users table with fee override
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -22,6 +45,8 @@ export async function initDatabase() {
       full_name TEXT,
       role TEXT DEFAULT 'user',
       is_active BOOLEAN DEFAULT true,
+      fee_override_percentage DECIMAL(5, 2) DEFAULT NULL,
+      fee_notes TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       last_login TIMESTAMP
     )
@@ -220,7 +245,7 @@ export async function initDatabase() {
         "max_active_total": 1
       }'::jsonb,
       1, 1, 20,
-      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      NULL, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       false, false, 'community'
     ),
     (
@@ -243,7 +268,7 @@ export async function initDatabase() {
         "max_active_total": 3
       }'::jsonb,
       3, 2, 100,
-      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      NULL, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, 'email'
     ),
     (
@@ -266,7 +291,7 @@ export async function initDatabase() {
         "max_active_total": 9
       }'::jsonb,
       9, 3, 500,
-      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      NULL, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, 'priority'
     ),
     (
@@ -290,7 +315,7 @@ export async function initDatabase() {
         "max_active_total": 999
       }'::jsonb,
       999, 10, 9999,
-      0.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      NULL, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, '24/7'
     )
     ON CONFLICT (tier_name) DO NOTHING
