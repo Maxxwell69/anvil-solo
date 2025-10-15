@@ -1,0 +1,57 @@
+ANVIL SOLO LICENSE AGREEMENT
+
+Copyright (c) 2025 Anvil Labs. All rights reserved.
+
+COMMERCIAL SOFTWARE LICENSE
+
+This software is licensed, not sold. By installing and using Anvil Solo, you agree to the following terms:
+
+1. LICENSE GRANT
+   Subject to your compliance with these terms and payment of applicable fees, Anvil Labs grants you a limited, non-exclusive, non-transferable license to use Anvil Solo.
+
+2. LICENSE TIERS
+   - Free Tier: Limited features for personal evaluation
+   - Tier 1: Enhanced features with cloud sync
+   - Tier 2: Professional features with advanced strategies
+   - Tier 3: Enterprise features with unlimited usage
+
+3. RESTRICTIONS
+   You may NOT:
+   - Reverse engineer, decompile, or disassemble the software
+   - Remove or modify any proprietary notices
+   - Use the software for illegal activities
+   - Share your license key with others
+   - Bypass license validation systems
+
+4. TRADING FEES
+   A percentage-based fee applies to trades executed through this software, as specified in your license tier. Fees are automatically calculated and collected.
+
+5. DATA AND PRIVACY
+   - Your wallet keys remain on your local device
+   - No sensitive data is transmitted without encryption
+   - Cloud sync is optional and can be disabled
+   - Trade data may be collected for analytics
+
+6. DISCLAIMER OF WARRANTIES
+   THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. ANVIL LABS DISCLAIMS ALL WARRANTIES INCLUDING MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+7. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL ANVIL LABS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF USE OF THIS SOFTWARE.
+
+8. TERMINATION
+   This license automatically terminates if you violate any terms. Upon termination, you must uninstall and destroy all copies.
+
+9. UPDATES
+   Anvil Labs may provide updates at its discretion. Updates may modify features or terms.
+
+10. GOVERNING LAW
+    This agreement is governed by applicable laws. Disputes shall be resolved through arbitration.
+
+SUPPORT
+For support, visit: https://anvil-solo-production.up.railway.app
+Email: support@anvil-labs.com
+
+By clicking "I Agree" and installing this software, you acknowledge that you have read and agree to these terms.
+
+Last Updated: January 2025
+
