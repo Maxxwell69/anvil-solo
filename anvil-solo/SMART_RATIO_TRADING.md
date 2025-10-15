@@ -308,3 +308,8 @@ This feature is now built into your ratio trading strategy!
 
 **Your ratio trading is now SMART and self-sufficient!** 🧠✨
 
+
+
+
+
+

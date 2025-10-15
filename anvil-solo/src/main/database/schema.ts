@@ -33,6 +33,10 @@ export class DatabaseSchema {
     this.createSettingsTable();
     this.createLicenseTable();
     this.createFeeTransactionsTable();
+    this.createActivityLogsTable();
+
+    // Run migrations for existing databases
+    this.runMigrations();
 
     console.log('Database initialized successfully');
   }
@@ -139,9 +143,12 @@ export class DatabaseSchema {
 
     // Insert default settings
     const defaultSettings = [
-      { key: 'rpc_url', value: 'https://api.mainnet-beta.solana.com' },
+      { key: 'rpc_url', value: 'https://mainnet.helius-rpc.com/?api-key=18937bea-7c1f-4930-9474-7c3b715235de' },
       { key: 'default_slippage_bps', value: '100' },
-      { key: 'default_priority_fee', value: '100000' },
+      { key: 'default_priority_fee', value: '100000' }, // Medium (default)
+      { key: 'priority_fee_low', value: '10000' },      // 0.00001 SOL
+      { key: 'priority_fee_medium', value: '100000' },  // 0.0001 SOL
+      { key: 'priority_fee_high', value: '500000' },    // 0.0005 SOL
       { key: 'auto_lock_minutes', value: '15' },
       { key: 'theme', value: 'dark' },
       { key: 'fee_wallet_address', value: '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd' }, // Admin fee collection wallet
@@ -179,6 +186,97 @@ export class DatabaseSchema {
     this.db.close();
   }
 
+  private runMigrations(): void {
+    console.log('Running database migrations...');
+
+    // Migration 1: Add archive fields and update CHECK constraint
+    try {
+      // Test if 'archived' status is allowed by trying to use it
+      let needsMigration = false;
+      
+      try {
+        // Try to insert a test row with 'archived' status
+        this.db.exec(`
+          INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
+          VALUES ('dca', 'test', '{}', 'archived', 0, 0)
+        `);
+        // If it worked, delete the test row
+        this.db.exec(`DELETE FROM strategies WHERE token_address = 'test' AND created_at = 0`);
+        console.log('  ℹ️  CHECK constraint already supports "archived" status');
+      } catch (testError: any) {
+        if (testError.message.includes('CHECK constraint')) {
+          needsMigration = true;
+          console.log('  ⚠️  CHECK constraint needs update - "archived" not allowed yet');
+        }
+      }
+      
+      if (needsMigration) {
+        console.log('  Migration 1: Recreating strategies table with archive support...');
+        
+        // SQLite doesn't allow modifying CHECK constraints, so we need to recreate the table
+        // Step 1: Create new table with updated schema
+        this.db.exec(`
+          CREATE TABLE strategies_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL CHECK(type IN ('dca', 'ratio', 'bundle')),
+            token_address TEXT NOT NULL,
+            config TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'stopped', 'completed', 'archived')) DEFAULT 'stopped',
+            progress TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            archived_at INTEGER,
+            cloud_synced BOOLEAN DEFAULT FALSE,
+            archive_notes TEXT
+          )
+        `);
+        
+        console.log('  Step 1: New table created ✅');
+        
+        // Step 2: Copy all data from old table
+        this.db.exec(`
+          INSERT INTO strategies_new (id, type, token_address, config, status, progress, created_at, updated_at)
+          SELECT id, type, token_address, config, status, progress, created_at, updated_at
+          FROM strategies
+        `);
+        
+        console.log('  Step 2: Data copied ✅');
+        
+        // Step 3: Drop old table
+        this.db.exec(`DROP TABLE strategies`);
+        
+        console.log('  Step 3: Old table dropped ✅');
+        
+        // Step 4: Rename new table
+        this.db.exec(`ALTER TABLE strategies_new RENAME TO strategies`);
+        
+        console.log('  Step 4: Table renamed ✅');
+        
+        // Step 5: Recreate indexes
+        this.db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_strategies_status 
+          ON strategies(status)
+        `);
+        
+        this.db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_strategies_archived 
+          ON strategies(archived_at) WHERE archived_at IS NOT NULL
+        `);
+        
+        console.log('  Step 5: Indexes recreated ✅');
+        console.log('  ✅ Migration completed - Archive status now supported!');
+      } else {
+        console.log('  ✅ Archive support already enabled');
+      }
+    } catch (error: any) {
+      console.error('  ❌ Migration failed:', error.message);
+      console.error('  Full error:', error);
+      // Don't throw - allow app to continue with existing schema
+    }
+    
+    console.log('Migrations completed');
+  }
+
   private createFeeTransactionsTable(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS fee_transactions (
@@ -205,6 +303,39 @@ export class DatabaseSchema {
       
       CREATE INDEX IF NOT EXISTS idx_fee_transactions_status 
       ON fee_transactions(status);
+    `);
+  }
+
+  private createActivityLogsTable(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type TEXT NOT NULL,
+        category TEXT NOT NULL CHECK(category IN ('strategy', 'trade', 'wallet', 'system')),
+        title TEXT NOT NULL,
+        description TEXT,
+        strategy_id INTEGER,
+        wallet_id INTEGER,
+        transaction_id INTEGER,
+        metadata TEXT,
+        severity TEXT DEFAULT 'info' CHECK(severity IN ('info', 'success', 'warning', 'error')),
+        timestamp INTEGER NOT NULL,
+        FOREIGN KEY (strategy_id) REFERENCES strategies(id),
+        FOREIGN KEY (wallet_id) REFERENCES wallets(id),
+        FOREIGN KEY (transaction_id) REFERENCES transactions(id)
+      )
+    `);
+
+    // Create indexes for faster queries
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp 
+      ON activity_logs(timestamp DESC);
+      
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_category 
+      ON activity_logs(category);
+      
+      CREATE INDEX IF NOT EXISTS idx_activity_logs_strategy 
+      ON activity_logs(strategy_id);
     `);
   }
 }
