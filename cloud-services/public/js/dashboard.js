@@ -62,25 +62,27 @@ async function loadDashboardData() {
 // Load licenses
 async function loadLicenses() {
     try {
-        const response = await fetch(`${API_BASE}/license/validate`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: currentUser.email }),
-        });
-
-        // Try alternate endpoint
+        // For now, show placeholder - will connect to actual license endpoint later
         let licenses = [];
-        if (!response.ok) {
-            // Just show empty state for now
-            licenses = [];
-        } else {
-            const data = await response.json();
-            if (data.licenses) {
-                licenses = data.licenses;
+        
+        // Try to get user's licenses if endpoint exists
+        try {
+            const response = await fetch(`${API_BASE}/admin/licenses`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                },
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.licenses) {
+                    // Filter to current user's email
+                    licenses = data.licenses.filter(l => l.email === currentUser.email);
+                }
             }
+        } catch (err) {
+            // Endpoint might not be available, show empty state
+            console.log('Could not load licenses:', err);
         }
 
         document.getElementById('licensesCount').textContent = licenses.length;
@@ -208,15 +210,16 @@ async function loadDownloads() {
         }
 
         // Load download history
-        const historyResponse = await fetch(`${API_BASE}/downloads/history`, {
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-            },
-        });
+        try {
+            const historyResponse = await fetch(`${API_BASE}/downloads/history`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                },
+            });
 
-        if (historyResponse.ok) {
-            const historyData = await historyResponse.json();
-            document.getElementById('downloadsCount').textContent = historyData.downloads.length;
+            if (historyResponse.ok) {
+                const historyData = await historyResponse.json();
+                document.getElementById('downloadsCount').textContent = historyData.downloads.length;
 
             const historyList = document.getElementById('downloadHistory');
             historyList.innerHTML = '';
@@ -243,6 +246,13 @@ async function loadDownloads() {
             } else {
                 historyList.innerHTML = '<p class="text-gray-500 text-center py-4">No download history</p>';
             }
+            } else {
+                document.getElementById('downloadsCount').textContent = '0';
+                document.getElementById('downloadHistory').innerHTML = '<p class="text-gray-500 text-center py-4">No download history</p>';
+            }
+        } catch (histErr) {
+            console.log('Download history not available yet');
+            document.getElementById('downloadsCount').textContent = '0';
         }
 
     } catch (error) {

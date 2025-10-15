@@ -17,6 +17,7 @@ import authRouter from './routes/auth-simple.js';
 import adminSetupRouter from './routes/admin-setup.js';
 import adminSimpleRouter from './routes/admin-simple.js';
 import downloadsSimpleRouter from './routes/downloads-simple.js';
+import syncSimpleRouter from './routes/sync-simple.js';
 import { initDatabase } from './database/postgres-init.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,7 @@ app.use('/api/admin-setup', adminSetupRouter);
 app.use('/api/admin', adminSimpleRouter); // Admin management endpoints
 app.use('/api/auth', authRouter);
 app.use('/api/downloads', downloadsSimpleRouter); // File downloads
+app.use('/api/sync', syncSimpleRouter); // Cloud sync
 app.use('/api/license', licenseRouter);
 app.use('/api/license', licenseEnhancedRouter); // Enhanced validation with features
 app.use('/api/tiers', tiersRouter); // License tier management

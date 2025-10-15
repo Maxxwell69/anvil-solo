@@ -188,6 +188,31 @@ async function ensureDownloadsTable() {
     `;
 }
 
+// Get download history for user
+router.get('/history', async (req: Request, res: Response) => {
+    try {
+        const sql = getDatabase();
+        
+        // Return recent downloads
+        const downloads = await sql`
+            SELECT * FROM downloads
+            ORDER BY created_at DESC
+            LIMIT 50
+        `;
+
+        res.json({
+            success: true,
+            downloads,
+        });
+    } catch (error: any) {
+        console.error('Download history error:', error);
+        res.json({
+            success: true,
+            downloads: [],
+        });
+    }
+});
+
 // Initialize on import
 ensureDownloadsTable().catch(err => console.error('Downloads table error:', err));
 
