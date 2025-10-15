@@ -557,34 +557,48 @@ function showCreateUserModal() {
     const modalContent = document.getElementById('modalContent');
     modalContent.innerHTML = `
         <div class="p-6">
-            <h2 class="text-2xl font-bold mb-6">Create User</h2>
-            <form id="createUserForm">
+            <h2 class="text-2xl font-bold mb-6">Create New User</h2>
+            <form id="createUserForm" autocomplete="off">
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2">Email</label>
-                    <input type="email" id="userEmail" required class="w-full px-4 py-2 border rounded">
+                    <input type="email" id="userEmail" name="new-user-email" required 
+                           autocomplete="off" 
+                           placeholder="user@example.com"
+                           class="w-full px-4 py-2 border rounded">
                 </div>
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2">Username</label>
-                    <input type="text" id="userUsername" required class="w-full px-4 py-2 border rounded">
+                    <input type="text" id="userUsername" name="new-user-username" required 
+                           autocomplete="off"
+                           placeholder="username"
+                           class="w-full px-4 py-2 border rounded">
                 </div>
                 <div class="mb-4">
                     <label class="block text-gray-700 font-semibold mb-2">Password</label>
-                    <input type="password" id="userPassword" required class="w-full px-4 py-2 border rounded">
+                    <input type="password" id="userPassword" name="new-user-password" required 
+                           autocomplete="new-password"
+                           placeholder="Minimum 8 characters"
+                           class="w-full px-4 py-2 border rounded">
                 </div>
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2">Full Name</label>
-                    <input type="text" id="userFullName" class="w-full px-4 py-2 border rounded">
+                    <label class="block text-gray-700 font-semibold mb-2">Full Name (Optional)</label>
+                    <input type="text" id="userFullName" name="new-user-fullname"
+                           autocomplete="off"
+                           placeholder="John Doe"
+                           class="w-full px-4 py-2 border rounded">
                 </div>
                 <div class="mb-6">
                     <label class="block text-gray-700 font-semibold mb-2">Role</label>
                     <select id="userRole" class="w-full px-4 py-2 border rounded">
-                        <option value="user">User</option>
+                        <option value="user" selected>User</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
                 <div class="flex justify-end space-x-2">
                     <button type="button" onclick="hideModal()" class="px-6 py-2 border rounded hover:bg-gray-100">Cancel</button>
-                    <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Create</button>
+                    <button type="submit" id="createUserBtn" class="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                        Create User
+                    </button>
                 </div>
             </form>
         </div>
@@ -592,14 +606,21 @@ function showCreateUserModal() {
 
     document.getElementById('createUserForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        
+        const submitBtn = document.getElementById('createUserBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating...';
         
         const data = {
             email: document.getElementById('userEmail').value,
             username: document.getElementById('userUsername').value,
             password: document.getElementById('userPassword').value,
-            fullName: document.getElementById('userFullName').value,
+            fullName: document.getElementById('userFullName').value || null,
             role: document.getElementById('userRole').value,
         };
+
+        console.log('Creating user with data:', data);
 
         try {
             const response = await fetch(`${API_BASE}/admin/users`, {
@@ -612,17 +633,23 @@ function showCreateUserModal() {
             });
 
             const result = await response.json();
+            console.log('Create user result:', result);
+
             if (result.success) {
-                alert('User created successfully!');
+                alert('User created successfully!\\n\\nEmail: ' + data.email + '\\nUsername: ' + data.username);
                 hideModal();
                 await refreshUsers();
                 await loadStats();
             } else {
                 alert(`Failed to create user: ${result.error}`);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create User';
             }
         } catch (error) {
             console.error('Create user error:', error);
-            alert('Failed to create user');
+            alert('Failed to create user. Check console for details.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create User';
         }
     });
 
@@ -828,10 +855,17 @@ function setupEventListeners() {
         window.location.href = '/login';
     });
 
-    // Close modal on overlay click
+    // Close modal on overlay click (but not on rapid clicks)
+    let modalClickTimeout;
     document.getElementById('modalOverlay').addEventListener('click', (e) => {
         if (e.target.id === 'modalOverlay') {
-            hideModal();
+            // Debounce to prevent accidental closes
+            clearTimeout(modalClickTimeout);
+            modalClickTimeout = setTimeout(() => {
+                if (confirm('Close this form? Any unsaved changes will be lost.')) {
+                    hideModal();
+                }
+            }, 100);
         }
     });
 }
