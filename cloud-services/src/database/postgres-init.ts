@@ -191,7 +191,7 @@ export async function initDatabase() {
     )
   `;
 
-  // Insert default tiers if not exist
+  // Insert default tiers - YOUR CUSTOM CONFIGURATION
   await sql`
     INSERT INTO license_tiers (
       tier_name, tier_display_name, description, 
@@ -201,26 +201,95 @@ export async function initDatabase() {
       can_use_advanced_strategies, can_cloud_sync, support_level
     ) VALUES
     (
-      'free', 'Free Trial', '30-day free trial with basic features',
-      0.00, 0.00,
-      '{"strategies": ["basic"], "indicators": ["rsi", "macd"], "auto_trading": false}'::jsonb,
-      1, 1, 10,
+      'free', 
+      'Free Tier', 
+      'Basic DCA strategy only - 1 active at a time',
+      0.00, 
+      0.00,
+      '{
+        "strategies": {
+          "dca": {"max": 1, "enabled": true},
+          "ratio": {"max": 0, "enabled": false, "locked": true},
+          "bundle": {"max": 0, "enabled": false, "locked": true}
+        },
+        "ui_elements": {
+          "ratio_section": "locked",
+          "bundle_section": "locked",
+          "cloud_sync": "locked"
+        },
+        "max_active_total": 1
+      }'::jsonb,
+      1, 1, 20,
       10.00, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       false, false, 'community'
     ),
     (
-      'pro', 'Professional', 'Full-featured trading bot',
-      49.99, 499.99,
-      '{"strategies": ["basic", "advanced", "smart_ratio", "dca"], "indicators": ["all"], "auto_trading": true}'::jsonb,
-      5, 3, 100,
+      'tier1', 
+      'Tier 1 - Starter', 
+      'DCA + Ratio trading with cloud sync',
+      29.99, 
+      299.99,
+      '{
+        "strategies": {
+          "dca": {"max": 2, "enabled": true},
+          "ratio": {"max": 1, "enabled": true},
+          "bundle": {"max": 0, "enabled": false, "locked": true}
+        },
+        "ui_elements": {
+          "ratio_section": "unlocked",
+          "bundle_section": "locked",
+          "cloud_sync": "unlocked"
+        },
+        "max_active_total": 3
+      }'::jsonb,
+      3, 2, 100,
+      7.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
+      true, true, 'email'
+    ),
+    (
+      'tier2', 
+      'Tier 2 - Professional', 
+      'DCA + Ratio + Bundle system unlocked',
+      59.99, 
+      599.99,
+      '{
+        "strategies": {
+          "dca": {"max": 3, "enabled": true},
+          "ratio": {"max": 3, "enabled": true},
+          "bundle": {"max": 3, "enabled": true}
+        },
+        "ui_elements": {
+          "ratio_section": "unlocked",
+          "bundle_section": "unlocked",
+          "cloud_sync": "unlocked"
+        },
+        "max_active_total": 9
+      }'::jsonb,
+      9, 3, 500,
       5.00, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, 'priority'
     ),
     (
-      'enterprise', 'Enterprise', 'Unlimited with 24/7 support',
-      199.99, 1999.99,
-      '{"strategies": ["all"], "indicators": ["all"], "auto_trading": true, "custom_strategies": true}'::jsonb,
-      99, 10, 1000,
+      'tier3', 
+      'Tier 3 - Enterprise', 
+      'Unlimited everything - all features unlocked',
+      99.99, 
+      999.99,
+      '{
+        "strategies": {
+          "dca": {"max": 999, "enabled": true},
+          "ratio": {"max": 999, "enabled": true},
+          "bundle": {"max": 999, "enabled": true}
+        },
+        "ui_elements": {
+          "ratio_section": "unlocked",
+          "bundle_section": "unlocked",
+          "cloud_sync": "unlocked",
+          "advanced_settings": "unlocked"
+        },
+        "max_active_total": 999
+      }'::jsonb,
+      999, 10, 9999,
       2.50, '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd',
       true, true, '24/7'
     )
