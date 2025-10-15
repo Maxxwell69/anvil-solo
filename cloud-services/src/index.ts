@@ -7,6 +7,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import licenseRouter from './routes/license.js';
+import licenseEnhancedRouter from './routes/license-enhanced.js';
+import tiersRouter from './routes/tiers.js';
+import tradesRouter from './routes/trades.js';
 import dataRouter from './routes/data.js';
 import archiveRouter from './routes/archive.js';
 import feesRouter from './routes/fees.js';
@@ -75,6 +78,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/admin-setup', adminSetupRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/license', licenseRouter);
+app.use('/api/license', licenseEnhancedRouter); // Enhanced validation with features
+app.use('/api/tiers', tiersRouter); // License tier management
+app.use('/api/trades', tradesRouter); // Trade fee recording
 app.use('/api/data', dataRouter);
 app.use('/api/archive', archiveRouter);
 app.use('/api/fees', feesRouter);
