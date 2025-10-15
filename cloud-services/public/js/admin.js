@@ -302,30 +302,130 @@ async function loadSettings() {
         const settingsList = document.getElementById('settingsList');
         settingsList.innerHTML = '';
 
-        data.settings.forEach(setting => {
-            const value = typeof setting.setting_value === 'string' 
-                ? JSON.parse(setting.setting_value) 
-                : setting.setting_value;
+        // Group by category
+        const feeSettings = data.settings.filter(s => s.category === 'fees');
+        const otherSettings = data.settings.filter(s => s.category !== 'fees');
 
-            settingsList.innerHTML += `
-                <div class="border rounded-lg p-6 bg-white shadow-sm">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <h3 class="text-lg font-bold text-gray-800">${setting.setting_key}</h3>
-                            <p class="text-gray-600 text-sm mb-2">${setting.description || 'No description'}</p>
-                            <p class="font-mono text-sm bg-gray-100 p-2 rounded">${JSON.stringify(value)}</p>
+        // Fee settings section
+        if (feeSettings.length > 0) {
+            settingsList.innerHTML += '<h3 class="text-xl font-bold text-gray-800 mb-4">Fee Configuration</h3>';
+            
+            feeSettings.forEach(setting => {
+                const isDefaultFee = setting.setting_key === 'default_trade_fee_percentage';
+                
+                settingsList.innerHTML += `
+                    <div class="border rounded-lg p-6 bg-white shadow-sm ${isDefaultFee ? 'border-purple-300 bg-purple-50' : ''}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-gray-800">
+                                    ${setting.description || setting.setting_key}
+                                    ${isDefaultFee ? '<span class="text-xs bg-purple-600 text-white px-2 py-1 rounded ml-2">SYSTEM DEFAULT</span>' : ''}
+                                </h3>
+                                <p class="text-gray-600 text-sm mb-2">
+                                    ${isDefaultFee ? 'This fee applies to all users unless overridden by tier or user settings.' : ''}
+                                </p>
+                                <div class="flex items-center mt-2">
+                                    <p class="font-mono text-2xl font-bold text-purple-600">${setting.setting_value}${isDefaultFee ? '%' : ''}</p>
+                                    <button onclick="editSetting('${setting.setting_key}', '${setting.setting_value}', '${setting.description}')" 
+                                            class="ml-4 text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <button onclick="editSetting('${setting.setting_key}')" class="text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-edit"></i>
-                        </button>
                     </div>
-                </div>
-            `;
-        });
+                `;
+            });
+        }
+
+        // Other settings
+        if (otherSettings.length > 0) {
+            settingsList.innerHTML += '<h3 class="text-xl font-bold text-gray-800 mb-4 mt-8">General Settings</h3>';
+            
+            otherSettings.forEach(setting => {
+                settingsList.innerHTML += `
+                    <div class="border rounded-lg p-6 bg-white shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-gray-800">${setting.setting_key}</h3>
+                                <p class="text-gray-600 text-sm mb-2">${setting.description || 'No description'}</p>
+                                <p class="font-mono text-sm bg-gray-100 p-2 rounded">${setting.setting_value}</p>
+                            </div>
+                            <button onclick="editSetting('${setting.setting_key}', '${setting.setting_value}', '${setting.description}')" 
+                                    class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
 
     } catch (error) {
         console.error('Load settings error:', error);
     }
+}
+
+// Edit setting modal
+function editSetting(key, currentValue, description) {
+    const modalContent = document.getElementById('modalContent');
+    modalContent.innerHTML = `
+        <div class="p-6">
+            <h2 class="text-2xl font-bold mb-6">Edit Setting</h2>
+            <form id="editSettingForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">Setting</label>
+                    <input type="text" value="${key}" readonly class="w-full px-4 py-2 border rounded bg-gray-100">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">Description</label>
+                    <p class="text-gray-600">${description}</p>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 font-semibold mb-2">Value</label>
+                    <input type="text" id="settingValue" value="${currentValue}" class="w-full px-4 py-2 border rounded">
+                    <p class="text-xs text-gray-500 mt-1">
+                        ${key === 'default_trade_fee_percentage' ? 'Enter percentage (e.g., 0.5 for 0.5%)' : ''}
+                    </p>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="hideModal()" class="px-6 py-2 border rounded hover:bg-gray-100">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('editSettingForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const value = document.getElementById('settingValue').value;
+
+        try {
+            const response = await fetch(`${API_BASE}/admin/settings/${key}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ value }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Setting updated successfully!');
+                hideModal();
+                await loadSettings();
+            } else {
+                alert(`Failed to update setting: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Update setting error:', error);
+            alert('Failed to update setting');
+        }
+    });
+
+    showModal();
 }
 
 // Refresh audit log
@@ -704,7 +804,7 @@ function setupEventListeners() {
             // Load data for tab
             if (tab === 'users') await refreshUsers();
             else if (tab === 'licenses') await refreshLicenses();
-            else if (tab === 'fees') await loadFees();
+            else if (tab === 'tiers') await refreshTiers();
             else if (tab === 'settings') await loadSettings();
             else if (tab === 'audit') await refreshAuditLog();
         });
@@ -736,12 +836,161 @@ function setupEventListeners() {
     });
 }
 
+// Load and display license tiers
+async function refreshTiers() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/license-tiers`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+            },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const tiersList = document.getElementById('tiersList');
+        tiersList.innerHTML = '';
+
+        if (!data.tiers || data.tiers.length === 0) {
+            tiersList.innerHTML = '<p class="text-gray-500 text-center py-8">No tiers configured</p>';
+            return;
+        }
+
+        data.tiers.forEach(tier => {
+            const feeDisplay = tier.trade_fee_percentage !== null 
+                ? `${tier.trade_fee_percentage}%` 
+                : 'System Default (0.5%)';
+
+            tiersList.innerHTML += `
+                <div class="border rounded-lg p-6 bg-white shadow-sm">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">${tier.tier_display_name}</h3>
+                            <p class="text-gray-600 mb-4">${tier.description}</p>
+                            
+                            <div class="grid grid-cols-3 gap-4 text-sm mb-4">
+                                <div class="bg-gray-50 p-3 rounded">
+                                    <div class="text-gray-600">Monthly Price</div>
+                                    <div class="text-xl font-bold">$${tier.price_monthly}</div>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded">
+                                    <div class="text-gray-600">Yearly Price</div>
+                                    <div class="text-xl font-bold">$${tier.price_yearly}</div>
+                                </div>
+                                <div class="bg-purple-50 p-3 rounded">
+                                    <div class="text-gray-600">Trade Fee</div>
+                                    <div class="text-xl font-bold text-purple-600">${feeDisplay}</div>
+                                </div>
+                            </div>
+
+                            <div class="text-sm text-gray-600">
+                                <strong>Strategies:</strong> ${tier.max_concurrent_strategies} concurrent • 
+                                <strong>Wallets:</strong> ${tier.max_wallets} • 
+                                <strong>Cloud Sync:</strong> ${tier.can_cloud_sync ? 'Yes' : 'No'}
+                            </div>
+                        </div>
+                        <button onclick="editTier('${tier.tier_name}')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                            <i class="fas fa-edit mr-2"></i>Edit
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+    } catch (error) {
+        console.error('Load tiers error:', error);
+    }
+}
+
+// Edit tier modal
+function editTier(tierName) {
+    // Fetch tier data first
+    fetch(`${API_BASE}/admin/license-tiers`, {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+    })
+    .then(res => res.json())
+    .then(data => {
+        const tier = data.tiers.find(t => t.tier_name === tierName);
+        if (!tier) return;
+
+        const modalContent = document.getElementById('modalContent');
+        modalContent.innerHTML = `
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-6">Edit ${tier.tier_display_name}</h2>
+                <form id="editTierForm">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Monthly Price ($)</label>
+                        <input type="number" step="0.01" id="tierPriceMonthly" value="${tier.price_monthly}" class="w-full px-4 py-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Yearly Price ($)</label>
+                        <input type="number" step="0.01" id="tierPriceYearly" value="${tier.price_yearly}" class="w-full px-4 py-2 border rounded">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Trade Fee Override (%)</label>
+                        <input type="number" step="0.01" id="tierFeeOverride" value="${tier.trade_fee_percentage || ''}" 
+                               placeholder="Leave empty to use system default (0.5%)" class="w-full px-4 py-2 border rounded">
+                        <p class="text-xs text-gray-500 mt-1">Leave empty = use system default. Set value = override for this tier.</p>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 font-semibold mb-2">Description</label>
+                        <textarea id="tierDescription" class="w-full px-4 py-2 border rounded" rows="2">${tier.description || ''}</textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="hideModal()" class="px-6 py-2 border rounded hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('editTierForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const updates = {
+                priceMonthly: parseFloat(document.getElementById('tierPriceMonthly').value),
+                priceYearly: parseFloat(document.getElementById('tierPriceYearly').value),
+                tradeFeePercentage: document.getElementById('tierFeeOverride').value ? parseFloat(document.getElementById('tierFeeOverride').value) : null,
+                description: document.getElementById('tierDescription').value,
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/license-tiers/${tierName}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updates),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('Tier updated successfully!');
+                    hideModal();
+                    await refreshTiers();
+                    await loadStats();
+                } else {
+                    alert(`Failed to update tier: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Update tier error:', error);
+                alert('Failed to update tier');
+            }
+        });
+
+        showModal();
+    });
+}
+
 // Make functions global
 window.showGenerateLicenseModal = showGenerateLicenseModal;
 window.showCreateUserModal = showCreateUserModal;
 window.showAddFeeModal = showAddFeeModal;
 window.refreshUsers = refreshUsers;
 window.refreshLicenses = refreshLicenses;
+window.refreshTiers = refreshTiers;
+window.editTier = editTier;
 window.loadFees = loadFees;
 window.refreshAuditLog = refreshAuditLog;
 window.hideModal = hideModal;

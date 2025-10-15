@@ -84,8 +84,8 @@
                     <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="licenses">
                         <i class="fas fa-key mr-2"></i>Licenses
                     </button>
-                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="fees">
-                        <i class="fas fa-dollar-sign mr-2"></i>Fee Structures
+                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="tiers">
+                        <i class="fas fa-layer-group mr-2"></i>License Tiers
                     </button>
                     <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="settings">
                         <i class="fas fa-cog mr-2"></i>Settings
@@ -156,15 +156,21 @@
                     <div id="licensesList" class="space-y-4"></div>
                 </div>
 
-                <!-- Fee Structures Tab -->
-                <div id="feesTab" class="tab-content hidden">
+                <!-- License Tiers Tab -->
+                <div id="tiersTab" class="tab-content hidden">
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">Fee Structures</h2>
-                        <button onclick="showAddFeeModal()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-                            <i class="fas fa-plus-circle mr-2"></i>Add Fee Structure
+                        <h2 class="text-2xl font-bold text-gray-800">License Tiers Configuration</h2>
+                        <button onclick="refreshTiers()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">
+                            <i class="fas fa-sync-alt"></i>
                         </button>
                     </div>
-                    <div id="feesList" class="space-y-4"></div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <p class="text-sm text-blue-800">
+                            <strong>Fee Priority:</strong> User Override > Tier Override > System Default (0.5%)
+                            <br>Leave "Trade Fee Override" empty to use system default.
+                        </p>
+                    </div>
+                    <div id="tiersList" class="space-y-4"></div>
                 </div>
 
                 <!-- Settings Tab -->
