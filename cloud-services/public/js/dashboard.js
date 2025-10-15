@@ -162,7 +162,7 @@ async function loadLicenses() {
 async function loadDownloads() {
     try {
         // Load available files
-        const filesResponse = await fetch(`${API_BASE}/downloads/files`);
+        const filesResponse = await fetch(`${API_BASE}/downloads/list`);
         const filesData = await filesResponse.json();
 
         const downloadsList = document.getElementById('downloadsList');
@@ -170,21 +170,41 @@ async function loadDownloads() {
 
         if (filesData.files && filesData.files.length > 0) {
             filesData.files.forEach(file => {
+                const sizeInMB = file.size ? (file.size / 1000000).toFixed(0) : '~150';
+                const platformIcon = file.platform === 'windows' ? 'fa-windows' : 
+                                    file.platform === 'mac' ? 'fa-apple' : 'fa-linux';
+
                 downloadsList.innerHTML += `
-                    <div class="border rounded-lg p-6 bg-white shadow-sm">
+                    <div class="border rounded-lg p-6 bg-white shadow-sm hover:shadow-lg transition">
                         <div class="flex justify-between items-start">
                             <div class="flex-1">
-                                <h3 class="text-xl font-bold text-gray-800 mb-2">${file.description}</h3>
-                                <p class="text-sm text-gray-600 mb-2">${file.name}</p>
-                                <p class="text-sm text-gray-500">Version ${file.version} • ${(file.size / 1000000).toFixed(0)} MB</p>
+                                <div class="flex items-center mb-2">
+                                    <i class="fab ${platformIcon} text-2xl text-purple-600 mr-3"></i>
+                                    <h3 class="text-xl font-bold text-gray-800">${file.displayName}</h3>
+                                </div>
+                                <p class="text-gray-600 mb-2">${file.description}</p>
+                                <div class="flex gap-4 text-sm text-gray-500">
+                                    <span><i class="fas fa-tag mr-1"></i>Version ${file.version}</span>
+                                    <span><i class="fas fa-hdd mr-1"></i>${sizeInMB} MB</span>
+                                    <span><i class="fas fa-shield-alt mr-1"></i>${file.requiresLicense ? 'License Required' : 'Free'}</span>
+                                </div>
                             </div>
-                            <button onclick="requestDownload('${file.name}')" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition">
+                            <button onclick="downloadFile('${file.id}', '${file.name}')" 
+                                    class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition flex items-center">
                                 <i class="fas fa-download mr-2"></i>Download
                             </button>
                         </div>
                     </div>
                 `;
             });
+        } else {
+            downloadsList.innerHTML = `
+                <div class="text-center py-12 bg-gray-50 rounded-lg">
+                    <i class="fas fa-download text-gray-300 text-5xl mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-600 mb-2">No Downloads Available</h3>
+                    <p class="text-gray-500">Files will appear here once uploaded to the server</p>
+                </div>
+            `;
         }
 
         // Load download history
@@ -414,6 +434,33 @@ function setupEventListeners() {
     });
 }
 
-// Make requestDownload global
+// Download file directly
+async function downloadFile(fileId, fileName) {
+    try {
+        // Direct download link
+        const downloadUrl = `${API_BASE}/downloads/${fileId}`;
+        
+        // Open download in new window
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success message
+        setTimeout(() => {
+            alert(`Download started!\n\nFile: ${fileName}\n\nCheck your downloads folder.`);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Download error:', error);
+        alert('Failed to start download. Please try again.');
+    }
+}
+
+// Make functions global
 window.requestDownload = requestDownload;
+window.downloadFile = downloadFile;
 
