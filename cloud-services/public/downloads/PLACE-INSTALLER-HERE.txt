@@ -1,0 +1,46 @@
+========================================
+   Anvil Solo Download Folder
+========================================
+
+This folder is where you place the built installer for users to download.
+
+HOW TO ADD THE INSTALLER:
+==========================
+
+Step 1: Build the Installer
+----------------------------
+cd c:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo
+BUILD-INSTALLER.bat
+
+This creates: anvil-solo\release\Anvil-Solo-Setup-3.0.0.exe
+
+Step 2: Copy to This Folder
+----------------------------
+cd c:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0
+COPY-TO-DOWNLOADS.bat
+
+This copies the installer to this folder as: anvil-solo-setup.exe
+
+Step 3: Deploy to Railway
+--------------------------
+cd cloud-services
+git add public/downloads/
+git commit -m "Add Anvil Solo installer"
+git push
+
+After deployment, users will see the download button in their dashboard!
+
+EXPECTED FILES IN THIS FOLDER:
+==============================
+- anvil-solo-setup.exe (Windows installer)
+- anvil-solo-portable.zip (Portable version - optional)
+- anvil-solo-mac.dmg (macOS version - optional)
+
+CURRENT STATUS:
+==============
+No installer files present yet.
+
+Files will automatically appear in the dashboard once you place them here and deploy.
+
+For detailed instructions, see: INSTALLER-READY.md in the parent directory.
+
