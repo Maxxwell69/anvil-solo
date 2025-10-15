@@ -424,16 +424,139 @@ router.get('/fees', requireAdmin, async (req: Request, res: Response) => {
 // Get system settings
 router.get('/settings', requireAdmin, async (req: Request, res: Response) => {
     try {
+        const sql = getDatabase();
+
+        const settings = await sql`
+            SELECT * FROM system_settings
+            ORDER BY category, setting_key
+        `;
+
         res.json({
             success: true,
-            settings: [
-                { setting_key: 'site_name', setting_value: '"Anvil License Server"', description: 'Site name' },
-                { setting_key: 'default_trade_fee', setting_value: '0.5', description: 'Default trade fee percentage' },
-                { setting_key: 'fee_wallet', setting_value: `"${process.env.FEE_WALLET_ADDRESS}"`, description: 'Fee collection wallet' },
-            ],
+            settings,
         });
     } catch (error: any) {
+        console.error('Get settings error:', error);
         res.json({ success: true, settings: [] });
+    }
+});
+
+// Update system setting
+router.patch('/settings/:key', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { value } = req.body;
+
+        if (value === undefined) {
+            return res.status(400).json({
+                success: false,
+                error: 'Value is required',
+            });
+        }
+
+        const sql = getDatabase();
+
+        await sql`
+            UPDATE system_settings
+            SET setting_value = ${value.toString()}, updated_at = CURRENT_TIMESTAMP
+            WHERE setting_key = ${req.params.key}
+        `;
+
+        const [setting] = await sql`SELECT * FROM system_settings WHERE setting_key = ${req.params.key}`;
+
+        res.json({
+            success: true,
+            setting,
+        });
+    } catch (error: any) {
+        console.error('Update setting error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update setting: ' + error.message,
+        });
+    }
+});
+
+// Get user details with fee override
+router.get('/users/:id', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const sql = getDatabase();
+
+        const [user] = await sql`
+            SELECT id, email, username, full_name, role, is_active, 
+                   fee_override_percentage, fee_notes, created_at, last_login
+            FROM users
+            WHERE id = ${parseInt(req.params.id)}
+        `;
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found',
+            });
+        }
+
+        // Get user's licenses
+        const licenses = await sql`
+            SELECT * FROM licenses WHERE email = ${user.email}
+            ORDER BY created_at DESC
+        `;
+
+        res.json({
+            success: true,
+            user,
+            licenses,
+        });
+    } catch (error: any) {
+        console.error('Get user error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get user',
+        });
+    }
+});
+
+// Update user (including fee override)
+router.patch('/users/:id', requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const { role, isActive, feeOverride, feeNotes } = req.body;
+
+        const sql = getDatabase();
+
+        const updates: any = {};
+        if (role !== undefined) updates.role = role;
+        if (isActive !== undefined) updates.is_active = isActive;
+        if (feeOverride !== undefined) updates.fee_override_percentage = feeOverride;
+        if (feeNotes !== undefined) updates.fee_notes = feeNotes;
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No updates provided',
+            });
+        }
+
+        await sql`
+            UPDATE users
+            SET ${sql(updates)}
+            WHERE id = ${parseInt(req.params.id)}
+        `;
+
+        const [user] = await sql`
+            SELECT id, email, username, full_name, role, is_active, 
+                   fee_override_percentage, fee_notes
+            FROM users WHERE id = ${parseInt(req.params.id)}
+        `;
+
+        res.json({
+            success: true,
+            user,
+        });
+    } catch (error: any) {
+        console.error('Update user error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update user: ' + error.message,
+        });
     }
 });
 

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDatabase } from '../database/postgres-init.js';
+import { calculateTradeFee } from '../utils/fee-calculator.js';
 
 const router = Router();
 
@@ -48,10 +49,11 @@ router.post('/record-trade', async (req: Request, res: Response) => {
             });
         }
 
-        // Calculate fee
-        const feePercentage = license.trade_fee_percentage || 5.0; // Default 5%
+        // Calculate fee using priority system: User Override > Tier Override > System Default
+        const feeCalc = await calculateTradeFee(licenseKey, license.email);
+        const feePercentage = feeCalc.feePercentage;
         const feeAmountSol = (parseFloat(amountOut) * feePercentage) / 100;
-        const feeRecipient = license.fee_recipient_wallet || process.env.FEE_WALLET_ADDRESS;
+        const feeRecipient = feeCalc.feeWallet;
 
         // Record trade fee
         const [tradeFee] = await sql`
