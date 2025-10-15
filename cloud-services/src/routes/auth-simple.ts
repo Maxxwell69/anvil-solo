@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { getDatabase } from '../database/init.js';
+import { getDatabase } from '../database/postgres-init.js';
 
 const router = Router();
 
@@ -36,7 +36,16 @@ router.post('/register', async (req: Request, res: Response) => {
             });
         }
 
-        const sql = getDatabase();
+        let sql;
+        try {
+            sql = getDatabase();
+        } catch (dbError: any) {
+            console.error('Database not ready:', dbError);
+            return res.status(503).json({
+                success: false,
+                error: 'Database is initializing, please try again in a few seconds',
+            });
+        }
 
         // Check if user exists
         const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
