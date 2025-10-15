@@ -996,8 +996,142 @@ window.refreshAuditLog = refreshAuditLog;
 window.hideModal = hideModal;
 window.revokeLicense = revokeLicense;
 window.toggleFee = toggleFee;
-window.viewUser = (id) => alert('View user ' + id);
+// View/Edit user with fee override
+window.viewUser = async (userId) => {
+    try {
+        const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` },
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            alert('Failed to load user');
+            return;
+        }
+
+        const user = data.user;
+        const modalContent = document.getElementById('modalContent');
+        
+        modalContent.innerHTML = `
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-6">Edit User: ${user.email}</h2>
+                <form id="editUserForm">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Email</label>
+                        <input type="text" value="${user.email}" readonly class="w-full px-4 py-2 border rounded bg-gray-100">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Username</label>
+                        <input type="text" value="${user.username}" readonly class="w-full px-4 py-2 border rounded bg-gray-100">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Role</label>
+                        <select id="userRole" class="w-full px-4 py-2 border rounded">
+                            <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                            <option value="super_admin" ${user.role === 'super_admin' ? 'selected' : ''}>Super Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Status</label>
+                        <select id="userActive" class="w-full px-4 py-2 border rounded">
+                            <option value="true" ${user.is_active ? 'selected' : ''}>Active</option>
+                            <option value="false" ${!user.is_active ? 'selected' : ''}>Inactive</option>
+                        </select>
+                    </div>
+                    
+                    <div class="border-t pt-4 mt-4">
+                        <h3 class="font-bold text-lg mb-3 text-purple-600">
+                            <i class="fas fa-percentage mr-2"></i>Fee Override (Optional)
+                        </h3>
+                        <div class="bg-purple-50 p-4 rounded mb-4">
+                            <p class="text-sm text-gray-700 mb-2">
+                                <strong>Priority:</strong> User Override > Tier Override > System Default
+                            </p>
+                            <p class="text-xs text-gray-600">
+                                Leave empty to use tier/system fee. Set a value to give this user a custom rate.
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">
+                                Fee Override Percentage (%)
+                            </label>
+                            <input type="number" step="0.01" id="userFeeOverride" 
+                                   value="${user.fee_override_percentage || ''}" 
+                                   placeholder="Leave empty to use tier/system default"
+                                   class="w-full px-4 py-2 border rounded">
+                            <p class="text-xs text-gray-500 mt-1">
+                                Examples: 0.1 (VIP rate), 0 (partner/no fee), 10 (penalty rate)
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Fee Notes</label>
+                            <textarea id="userFeeNotes" class="w-full px-4 py-2 border rounded" rows="2" 
+                                      placeholder="e.g., VIP customer, Partner deal, etc.">${user.fee_notes || ''}</textarea>
+                        </div>
+                        
+                        <div class="bg-gray-100 p-3 rounded">
+                            <strong>Current Fee:</strong> 
+                            <span class="text-purple-600 font-bold">
+                                ${user.fee_override_percentage !== null && user.fee_override_percentage !== undefined 
+                                    ? user.fee_override_percentage + '% (User Override)' 
+                                    : 'Using tier/system default'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2 mt-6">
+                        <button type="button" onclick="hideModal()" class="px-6 py-2 border rounded hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const updates = {
+                role: document.getElementById('userRole').value,
+                isActive: document.getElementById('userActive').value === 'true',
+                feeOverride: document.getElementById('userFeeOverride').value ? parseFloat(document.getElementById('userFeeOverride').value) : null,
+                feeNotes: document.getElementById('userFeeNotes').value || null,
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updates),
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('User updated successfully!');
+                    hideModal();
+                    await refreshUsers();
+                } else {
+                    alert(`Failed to update user: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Update user error:', error);
+                alert('Failed to update user');
+            }
+        });
+
+        showModal();
+
+    } catch (error) {
+        console.error('View user error:', error);
+        alert('Failed to load user details');
+    }
+};
+
 window.editLicense = (key) => alert('Edit license ' + key);
 window.editFee = (id) => alert('Edit fee ' + id);
-window.editSetting = (key) => alert('Edit setting ' + key);
 
