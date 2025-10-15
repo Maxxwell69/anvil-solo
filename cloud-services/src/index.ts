@@ -3,11 +3,16 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import licenseRouter from './routes/license.js';
 import dataRouter from './routes/data.js';
 import archiveRouter from './routes/archive.js';
 import feesRouter from './routes/fees.js';
 import { initDatabase } from './database/postgres-init.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -18,7 +23,17 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com'],
+      fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['*'],
   credentials: true
@@ -49,11 +64,35 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
+
+// API Routes
 app.use('/api/license', licenseRouter);
 app.use('/api/data', dataRouter);
 app.use('/api/archive', archiveRouter);
 app.use('/api/fees', feesRouter);
+
+// HTML page routes
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/login.html'));
+});
+
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/register.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin.html'));
+});
 
 // 404 handler
 app.use((req, res) => {
