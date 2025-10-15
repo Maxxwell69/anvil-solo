@@ -7,21 +7,21 @@ const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_KEY || 'default-secret-change-in-production';
 
-// Simple user table creation
+// Ensure users table exists
 async function ensureUsersTable() {
-    const db = getDatabase();
-    db.exec(`
+    const sql = getDatabase();
+    await sql`
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             username TEXT UNIQUE NOT NULL,
             full_name TEXT,
             role TEXT DEFAULT 'user',
-            is_active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            is_active BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    `);
+    `;
 }
 
 // Register
@@ -56,11 +56,11 @@ router.post('/register', async (req: Request, res: Response) => {
         // Ensure table exists
         await ensureUsersTable();
 
-        const db = getDatabase();
+        const sql = getDatabase();
 
         // Check if user exists
-        const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-        if (existing) {
+        const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
+        if (existing.length > 0) {
             return res.status(409).json({
                 success: false,
                 error: 'User already exists',
@@ -71,14 +71,15 @@ router.post('/register', async (req: Request, res: Response) => {
         const passwordHash = await bcrypt.hash(password, 10);
 
         // Create user
-        const result = db.prepare(`
+        const [user] = await sql`
             INSERT INTO users (email, password_hash, username, full_name)
-            VALUES (?, ?, ?, ?)
-        `).run(email, passwordHash, username, fullName || null);
+            VALUES (${email}, ${passwordHash}, ${username}, ${fullName || null})
+            RETURNING id, email, username, full_name, role, created_at
+        `;
 
         // Generate token
         const token = jwt.sign(
-            { userId: result.lastInsertRowid, email, role: 'user' },
+            { userId: user.id, email: user.email, role: user.role },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -86,10 +87,11 @@ router.post('/register', async (req: Request, res: Response) => {
         res.status(201).json({
             success: true,
             user: {
-                id: result.lastInsertRowid,
-                email,
-                username,
-                role: 'user',
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                fullName: user.full_name,
+                role: user.role,
             },
             token,
         });
@@ -114,16 +116,18 @@ router.post('/login', async (req: Request, res: Response) => {
             });
         }
 
-        const db = getDatabase();
+        const sql = getDatabase();
 
         // Find user
-        const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-        if (!user) {
+        const users = await sql`SELECT * FROM users WHERE email = ${email}`;
+        if (users.length === 0) {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid email or password',
             });
         }
+
+        const user = users[0];
 
         // Verify password
         const validPassword = await bcrypt.compare(password, user.password_hash);
@@ -147,6 +151,7 @@ router.post('/login', async (req: Request, res: Response) => {
                 id: user.id,
                 email: user.email,
                 username: user.username,
+                fullName: user.full_name,
                 role: user.role,
             },
             token,
@@ -172,15 +177,17 @@ router.get('/me', async (req: Request, res: Response) => {
         }
 
         const decoded: any = jwt.verify(token, JWT_SECRET);
-        const db = getDatabase();
+        const sql = getDatabase();
 
-        const user: any = db.prepare('SELECT id, email, username, full_name, role FROM users WHERE id = ?').get(decoded.userId);
-        if (!user) {
+        const users = await sql`SELECT id, email, username, full_name, role FROM users WHERE id = ${decoded.userId}`;
+        if (users.length === 0) {
             return res.status(404).json({
                 success: false,
                 error: 'User not found',
             });
         }
+
+        const user = users[0];
 
         res.json({
             success: true,
@@ -209,4 +216,3 @@ router.post('/logout', async (req: Request, res: Response) => {
 });
 
 export default router;
-
