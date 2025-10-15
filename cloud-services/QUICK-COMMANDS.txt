@@ -1,0 +1,68 @@
+RAILWAY DEPLOYMENT - COPY & PASTE THESE COMMANDS
+================================================================
+
+STEP 1: Already done! (You created the project)
+
+STEP 2: Add PostgreSQL Database
+--------------------------------
+In the Railway menu that's open:
+  - Arrow down to "Database"
+  - Press Enter
+  - Select "PostgreSQL"
+  - Press Enter
+
+
+STEP 3: Generate Admin Key
+---------------------------
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+(Copy the output - you'll need it!)
+
+
+STEP 4: Set Environment Variables
+----------------------------------
+(Replace YOUR_KEY_FROM_STEP_3 with the key you copied)
+
+railway variables set ADMIN_KEY=YOUR_KEY_FROM_STEP_3
+railway variables set SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+railway variables set FEE_WALLET_ADDRESS=82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd
+railway variables set ALLOWED_ORIGINS=*
+railway variables set NODE_ENV=production
+
+
+STEP 5: Deploy
+--------------
+railway up
+
+
+STEP 6: Get Your URL
+--------------------
+railway status
+
+(Look for the URL and copy it)
+
+
+STEP 7: Test It
+---------------
+(Replace YOUR_URL with the URL from step 6)
+
+curl https://YOUR_URL/health
+
+
+STEP 8: Generate Test License
+------------------------------
+(Replace YOUR_URL and YOUR_ADMIN_KEY)
+
+curl -X POST https://YOUR_URL/api/license/generate -H "X-Admin-Key: YOUR_ADMIN_KEY" -H "Content-Type: application/json" -d "{\"tier\":\"pro\",\"email\":\"test@example.com\"}"
+
+
+DONE! ✅
+================================================================
+
+Useful Commands:
+  railway open       - Open Railway dashboard
+  railway logs       - View logs
+  railway variables  - See all variables
+  railway status     - Check status
+
+

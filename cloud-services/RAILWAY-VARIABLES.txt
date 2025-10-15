@@ -1,0 +1,65 @@
+========================================
+RAILWAY ENVIRONMENT VARIABLES
+========================================
+
+Copy and paste these into Railway Dashboard:
+(Go to Your Service → Variables Tab → Add New Variable)
+
+========================================
+REQUIRED VARIABLES:
+========================================
+
+Variable Name: JWT_SECRET
+Value: 128e1f2bbbec65f789d9e6ff9172cce8fd397e8433ef71a97bef500c1ecc7d42
+
+Variable Name: ADMIN_KEY
+Value: f8b9a040745af466cf9a7bd2eea4b033744909fb8c6320526298e96db44bda85
+
+Variable Name: NODE_ENV
+Value: production
+
+Variable Name: ALLOWED_ORIGINS
+Value: *
+
+========================================
+OPTIONAL VARIABLES:
+========================================
+
+Variable Name: SOLANA_RPC_URL
+Value: https://api.mainnet-beta.solana.com
+
+Variable Name: FEE_WALLET_ADDRESS
+Value: 82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd
+
+========================================
+HOW TO ADD IN RAILWAY:
+========================================
+
+1. Go to https://railway.app/dashboard
+2. Click on your project
+3. Click on your SERVICE (not the database)
+4. Click "Variables" tab
+5. Click "+ New Variable" for each one
+6. Copy the Variable Name
+7. Copy the Value
+8. Click "Add"
+9. Repeat for all variables
+10. Railway will auto-restart your service
+
+========================================
+NOTES:
+========================================
+
+- DATABASE_URL is automatically set by Railway when you add PostgreSQL
+- Keep JWT_SECRET and ADMIN_KEY private!
+- Don't share these values publicly
+- You can regenerate them anytime if compromised
+
+========================================
+SAVE THIS FILE!
+========================================
+
+Keep this file safe in case you need to redeploy or reference these values later.
+
+Generated: October 15, 2024
+
