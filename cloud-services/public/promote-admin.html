@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Promote to Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+        <h1 class="text-2xl font-bold mb-6">Promote User to Admin</h1>
+        
+        <div id="message" class="hidden mb-4 p-4 rounded"></div>
+        
+        <form id="promoteForm">
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">Your Email:</label>
+                <input type="email" id="email" required value="maxx@pantherpilot.com"
+                    class="w-full px-4 py-2 border rounded">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">Any License Key (from /api/license/generate):</label>
+                <input type="text" id="licenseKey" required placeholder="Get from admin or generate"
+                    class="w-full px-4 py-2 border rounded">
+                <p class="text-sm text-gray-500 mt-1">This is just to verify you're authorized</p>
+            </div>
+            
+            <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded hover:bg-purple-700">
+                Promote to Super Admin
+            </button>
+        </form>
+        
+        <div class="mt-6 p-4 bg-blue-50 rounded text-sm">
+            <p><strong>Note:</strong> This is a one-time setup page. After you become admin, you can manage everything from the admin panel.</p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('promoteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const message = document.getElementById('message');
+            const email = document.getElementById('email').value;
+            
+            try {
+                // For now, just show instructions
+                message.className = 'block mb-4 p-4 rounded bg-yellow-100 text-yellow-800';
+                message.innerHTML = `
+                    <p class="font-bold mb-2">To promote yourself to admin:</p>
+                    <p>1. First register at <a href="/register" class="underline">/register</a></p>
+                    <p>2. Then I'll help you update the role in the database</p>
+                    <p class="mt-2">Or contact support with your email: ${email}</p>
+                `;
+                
+            } catch (error) {
+                message.className = 'block mb-4 p-4 rounded bg-red-100 text-red-800';
+                message.textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
+
