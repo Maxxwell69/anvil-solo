@@ -7,23 +7,6 @@ const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_KEY || 'default-secret-change-in-production';
 
-// Ensure users table exists
-async function ensureUsersTable() {
-    const sql = getDatabase();
-    await sql`
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            username TEXT UNIQUE NOT NULL,
-            full_name TEXT,
-            role TEXT DEFAULT 'user',
-            is_active BOOLEAN DEFAULT true,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `;
-}
-
 // Register
 router.post('/register', async (req: Request, res: Response) => {
     try {
@@ -52,9 +35,6 @@ router.post('/register', async (req: Request, res: Response) => {
                 error: 'Password must be at least 8 characters',
             });
         }
-
-        // Ensure table exists
-        await ensureUsersTable();
 
         const sql = getDatabase();
 
