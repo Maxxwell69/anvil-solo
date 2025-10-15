@@ -5,8 +5,13 @@ nixPkgs = ["nodejs_20", "python3"]
 cmds = ["npm install"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["echo 'Skipping build - using tsx to run TypeScript directly'"]
 
 [start]
 cmd = "npm start"
+
+
+
+
+
 

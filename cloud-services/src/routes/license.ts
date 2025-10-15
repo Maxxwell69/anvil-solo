@@ -160,11 +160,12 @@ router.post('/generate', async (req, res) => {
     const licenseKey = `ANVIL-${crypto.randomBytes(16).toString('hex').toUpperCase()}`;
     
     // Set limits based on tier
-    const limits = {
+    const tierLimits: Record<string, { maxStrategies: number; maxWallets: number }> = {
       starter: { maxStrategies: 3, maxWallets: 3 },
       pro: { maxStrategies: 10, maxWallets: 10 },
       enterprise: { maxStrategies: 999, maxWallets: 999 }
-    }[tier] || { maxStrategies: 3, maxWallets: 3 };
+    };
+    const limits = tierLimits[tier] || { maxStrategies: 3, maxWallets: 3 };
     
     const db = getDatabase();
     db.prepare(`
@@ -209,4 +210,5 @@ router.post('/deactivate', async (req, res) => {
 });
 
 export default router;
+
 

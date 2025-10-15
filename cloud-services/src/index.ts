@@ -4,9 +4,10 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import licenseRouter from './routes/license.js';
-import strategyRouter from './routes/strategy.js';
 import dataRouter from './routes/data.js';
-import { initDatabase } from './database/init.js';
+import archiveRouter from './routes/archive.js';
+import feesRouter from './routes/fees.js';
+import { initDatabase } from './database/postgres-init.js';
 
 dotenv.config();
 
@@ -16,20 +17,20 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:*'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['*'],
   credentials: true
 }));
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 200, // limit each IP to 200 requests per windowMs
   message: 'Too many requests from this IP, please try again later'
 });
 app.use(limiter);
 
 // Body parser
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Increased for archive data
 app.use(express.urlencoded({ extended: true }));
 
 // Initialize database
@@ -40,14 +41,16 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    service: 'anvil-cloud-services'
+    service: 'anvil-cloud-services',
+    version: '2.0.0'
   });
 });
 
 // Routes
 app.use('/api/license', licenseRouter);
-app.use('/api/strategy', strategyRouter);
 app.use('/api/data', dataRouter);
+app.use('/api/archive', archiveRouter);
+app.use('/api/fees', feesRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -73,4 +76,5 @@ app.listen(PORT, () => {
 });
 
 export default app;
+
 

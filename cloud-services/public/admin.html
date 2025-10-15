@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Anvil License Server</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-purple-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-shield-alt text-white text-2xl mr-3"></i>
+                    <span class="text-2xl font-bold text-white">Anvil Admin</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="adminEmail" class="text-white"></span>
+                    <a href="/dashboard" class="text-white hover:text-gray-200">
+                        <i class="fas fa-user mr-2"></i>User View
+                    </a>
+                    <button id="logoutBtn" class="text-white hover:text-gray-200">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Dashboard -->
+        <div class="grid md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-600 text-sm font-semibold">Total Users</div>
+                        <div id="totalUsers" class="text-3xl font-bold text-gray-800">-</div>
+                    </div>
+                    <i class="fas fa-users text-purple-600 text-3xl"></i>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-600 text-sm font-semibold">Total Licenses</div>
+                        <div id="totalLicenses" class="text-3xl font-bold text-gray-800">-</div>
+                    </div>
+                    <i class="fas fa-key text-blue-600 text-3xl"></i>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-600 text-sm font-semibold">Active Licenses</div>
+                        <div id="activeLicenses" class="text-3xl font-bold text-gray-800">-</div>
+                    </div>
+                    <i class="fas fa-check-circle text-green-600 text-3xl"></i>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-gray-600 text-sm font-semibold">Total Revenue</div>
+                        <div id="totalRevenue" class="text-3xl font-bold text-gray-800">$0</div>
+                    </div>
+                    <i class="fas fa-dollar-sign text-yellow-600 text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-lg shadow mb-8">
+            <div class="border-b border-gray-200">
+                <div class="flex overflow-x-auto">
+                    <button class="tab-btn px-6 py-4 font-semibold border-b-2 border-purple-600 text-purple-600 whitespace-nowrap" data-tab="overview">
+                        <i class="fas fa-chart-line mr-2"></i>Overview
+                    </button>
+                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="users">
+                        <i class="fas fa-users mr-2"></i>Users
+                    </button>
+                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="licenses">
+                        <i class="fas fa-key mr-2"></i>Licenses
+                    </button>
+                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="fees">
+                        <i class="fas fa-dollar-sign mr-2"></i>Fee Structures
+                    </button>
+                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="settings">
+                        <i class="fas fa-cog mr-2"></i>Settings
+                    </button>
+                    <button class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-purple-600 whitespace-nowrap" data-tab="audit">
+                        <i class="fas fa-history mr-2"></i>Audit Log
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <!-- Overview Tab -->
+                <div id="overviewTab" class="tab-content">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">System Overview</h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="font-bold text-lg mb-4">Quick Actions</h3>
+                            <div class="space-y-3">
+                                <button onclick="showGenerateLicenseModal()" class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700">
+                                    <i class="fas fa-plus-circle mr-2"></i>Generate License
+                                </button>
+                                <button onclick="showCreateUserModal()" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-user-plus mr-2"></i>Create User
+                                </button>
+                                <button onclick="showAddFeeModal()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
+                                    <i class="fas fa-percentage mr-2"></i>Add Fee Structure
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="font-bold text-lg mb-4">Recent Activity</h3>
+                            <div id="recentActivity" class="space-y-2 text-sm">
+                                <p class="text-gray-500">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="usersTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">User Management</h2>
+                        <div class="flex space-x-2">
+                            <button onclick="refreshUsers()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button onclick="showCreateUserModal()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                                <i class="fas fa-user-plus mr-2"></i>Create User
+                            </button>
+                        </div>
+                    </div>
+                    <div id="usersList" class="space-y-4"></div>
+                </div>
+
+                <!-- Licenses Tab -->
+                <div id="licensesTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">License Management</h2>
+                        <div class="flex space-x-2">
+                            <button onclick="refreshLicenses()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <button onclick="showGenerateLicenseModal()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                                <i class="fas fa-plus-circle mr-2"></i>Generate License
+                            </button>
+                        </div>
+                    </div>
+                    <div id="licensesList" class="space-y-4"></div>
+                </div>
+
+                <!-- Fee Structures Tab -->
+                <div id="feesTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Fee Structures</h2>
+                        <button onclick="showAddFeeModal()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                            <i class="fas fa-plus-circle mr-2"></i>Add Fee Structure
+                        </button>
+                    </div>
+                    <div id="feesList" class="space-y-4"></div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsTab" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">System Settings</h2>
+                    <div id="settingsList" class="space-y-4"></div>
+                </div>
+
+                <!-- Audit Log Tab -->
+                <div id="auditTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Audit Log</h2>
+                        <button onclick="refreshAuditLog()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div id="auditLogList" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modalOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div id="modalContent" class="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto"></div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>
+
