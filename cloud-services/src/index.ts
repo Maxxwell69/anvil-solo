@@ -29,15 +29,17 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy - required for Railway/Heroku/etc
 app.set('trust proxy', 1);
 
-// Security middleware
+// Security middleware - Relaxed CSP for admin panel
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com'],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com'],
-      fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://cdn.tailwindcss.com', 'https://cdnjs.cloudflare.com'],
+      scriptSrcAttr: ["'unsafe-inline'"], // Allow onclick handlers
+      fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
     },
   },
 }));
