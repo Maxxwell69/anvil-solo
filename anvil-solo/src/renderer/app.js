@@ -12,14 +12,31 @@ if (!window.electron) {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
   
-  // Skip unlock screen - go directly to main app
-  showMainApp();
+  // Setup wallet creation/import first
+  setupWalletCreation();
+  
+  // Setup wallet page buttons
+  setupWalletPage();
+  
+  // Setup strategy pages
+  setupDCAPage();
+  setupRatioPage();
+  setupBundlePage();
+  
+  // Setup token manager
+  setupTokenManager();
+  
+  // Check if wallet exists and show appropriate screen
+  checkWalletAndShowScreen();
   
   // Setup navigation
   setupNavigation();
   
   // Setup license activation
   setupLicenseActivation();
+  
+  // Setup trades page
+  setupTradesPage();
   
   // Show welcome message
   showWelcomeMessage();
@@ -37,6 +54,1295 @@ function hideModal(modalId) {
   if (modal) {
     modal.style.display = 'none';
   }
+}
+
+function setupWalletCreation() {
+  // Generate Wallet Button (unlock screen)
+  const generateWalletBtn = document.getElementById('generate-wallet-btn');
+  if (generateWalletBtn) {
+    generateWalletBtn.addEventListener('click', () => {
+      console.log('Opening generate wallet modal');
+      showModal('generate-modal');
+    });
+  }
+  
+  // Import Wallet Button (unlock screen)
+  const importWalletBtn = document.getElementById('import-wallet-btn');
+  if (importWalletBtn) {
+    importWalletBtn.addEventListener('click', () => {
+      console.log('Opening import wallet modal');
+      showModal('import-modal');
+    });
+  }
+  
+  // Generate Wallet Button (wallet page)
+  const walletGenerateNewBtn = document.getElementById('wallet-generate-new-btn');
+  if (walletGenerateNewBtn) {
+    walletGenerateNewBtn.addEventListener('click', () => {
+      console.log('Opening generate wallet modal from wallet page');
+      showModal('generate-modal');
+    });
+  }
+  
+  // Import Wallet Button (wallet page)
+  const walletImportBtn = document.getElementById('wallet-import-btn');
+  if (walletImportBtn) {
+    walletImportBtn.addEventListener('click', () => {
+      console.log('Opening import wallet modal from wallet page');
+      showModal('import-modal');
+    });
+  }
+  
+  // Password Toggle Buttons
+  setupPasswordToggles();
+  
+  // Generate Modal - Create Wallet
+  const genCreateBtn = document.getElementById('gen-create-btn');
+  if (genCreateBtn) {
+    genCreateBtn.addEventListener('click', async () => {
+      const password = document.getElementById('gen-password').value;
+      const confirmPassword = document.getElementById('gen-confirm-password').value;
+      const genError = document.getElementById('gen-error');
+      
+      // Validation
+      if (!password || password.length < 8) {
+        genError.textContent = '❌ Password must be at least 8 characters';
+        genError.style.display = 'block';
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        genError.textContent = '❌ Passwords do not match';
+        genError.style.display = 'block';
+        return;
+      }
+      
+      try {
+        genError.style.display = 'none';
+        genCreateBtn.disabled = true;
+        genCreateBtn.textContent = 'Creating Wallet...';
+        
+        // Call the backend to generate wallet
+        const result = await window.electron.wallet.generate(password, 'Main Wallet');
+        
+        if (result.success) {
+          // Show success modal with wallet info
+          hideModal('generate-modal');
+          showSuccessMessage(`
+            <h3>✅ Wallet Created Successfully!</h3>
+            <p><strong>Public Key:</strong></p>
+            <p style="word-break: break-all; background: #2c3e50; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">${result.publicKey}</p>
+            <p style="color: #e74c3c; margin-top: 15px;"><strong>⚠️ IMPORTANT:</strong> Your wallet is encrypted with your password. Never share your password with anyone!</p>
+          `);
+          
+          // Clear form
+          document.getElementById('gen-password').value = '';
+          document.getElementById('gen-confirm-password').value = '';
+          
+          // Refresh wallet list if on wallet page
+          setTimeout(() => {
+            if (typeof loadAllWallets === 'function') {
+              loadAllWallets();
+            }
+          }, 1000);
+        } else {
+          genError.textContent = `❌ ${result.message || 'Failed to create wallet'}`;
+          genError.style.display = 'block';
+        }
+      } catch (error) {
+        genError.textContent = `❌ Error: ${error.message}`;
+        genError.style.display = 'block';
+        console.error('Generate wallet error:', error);
+      } finally {
+        genCreateBtn.disabled = false;
+        genCreateBtn.textContent = 'Create Wallet';
+      }
+    });
+  }
+  
+  // Generate Modal - Cancel
+  const genCancelBtn = document.getElementById('gen-cancel-btn');
+  if (genCancelBtn) {
+    genCancelBtn.addEventListener('click', () => {
+      hideModal('generate-modal');
+      document.getElementById('gen-password').value = '';
+      document.getElementById('gen-confirm-password').value = '';
+      document.getElementById('gen-error').style.display = 'none';
+    });
+  }
+  
+  // Import Modal - Import Wallet
+  const importCreateBtn = document.getElementById('import-create-btn');
+  if (importCreateBtn) {
+    importCreateBtn.addEventListener('click', async () => {
+      const privateKey = document.getElementById('import-private-key').value.trim();
+      const password = document.getElementById('import-password').value;
+      const confirmPassword = document.getElementById('import-confirm-password').value;
+      const importError = document.getElementById('import-error');
+      
+      // Validation
+      if (!privateKey) {
+        importError.textContent = '❌ Please enter your private key';
+        importError.style.display = 'block';
+        return;
+      }
+      
+      if (!password || password.length < 8) {
+        importError.textContent = '❌ Password must be at least 8 characters';
+        importError.style.display = 'block';
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        importError.textContent = '❌ Passwords do not match';
+        importError.style.display = 'block';
+        return;
+      }
+      
+      try {
+        importError.style.display = 'none';
+        importCreateBtn.disabled = true;
+        importCreateBtn.textContent = 'Importing Wallet...';
+        
+        // Call the backend to import wallet
+        const result = await window.electron.wallet.import(privateKey, password, 'Imported Wallet');
+        
+        if (result.success) {
+          // Show success modal
+          hideModal('import-modal');
+          showSuccessMessage(`
+            <h3>✅ Wallet Imported Successfully!</h3>
+            <p><strong>Public Key:</strong></p>
+            <p style="word-break: break-all; background: #2c3e50; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">${result.publicKey}</p>
+            <p style="color: #27ae60; margin-top: 15px;">Your wallet is now ready to use!</p>
+          `);
+          
+          // Clear form
+          document.getElementById('import-private-key').value = '';
+          document.getElementById('import-password').value = '';
+          document.getElementById('import-confirm-password').value = '';
+          
+          // Refresh wallet list if on wallet page
+          setTimeout(() => {
+            if (typeof loadAllWallets === 'function') {
+              loadAllWallets();
+            }
+          }, 1000);
+        } else {
+          importError.textContent = `❌ ${result.message || 'Failed to import wallet'}`;
+          importError.style.display = 'block';
+        }
+      } catch (error) {
+        importError.textContent = `❌ Error: ${error.message}`;
+        importError.style.display = 'block';
+        console.error('Import wallet error:', error);
+      } finally {
+        importCreateBtn.disabled = false;
+        importCreateBtn.textContent = 'Import Wallet';
+      }
+    });
+  }
+  
+  // Import Modal - Cancel
+  const importCancelBtn = document.getElementById('import-cancel-btn');
+  if (importCancelBtn) {
+    importCancelBtn.addEventListener('click', () => {
+      hideModal('import-modal');
+      document.getElementById('import-private-key').value = '';
+      document.getElementById('import-password').value = '';
+      document.getElementById('import-confirm-password').value = '';
+      document.getElementById('import-error').style.display = 'none';
+    });
+  }
+  
+  // Success Modal - OK Button
+  const successOkBtn = document.getElementById('success-ok-btn');
+  if (successOkBtn) {
+    successOkBtn.addEventListener('click', () => {
+      hideModal('success-modal');
+    });
+  }
+}
+
+function setupWalletPage() {
+  // Refresh Wallets Button
+  const refreshWalletsBtn = document.getElementById('refresh-wallets-btn');
+  if (refreshWalletsBtn) {
+    refreshWalletsBtn.addEventListener('click', () => {
+      console.log('Refreshing wallets...');
+      loadAllWallets();
+    });
+  }
+}
+
+function setupDCAPage() {
+  // Custom interval visibility toggle
+  const frequencySelect = document.getElementById('dca-frequency');
+  const customIntervalDiv = document.getElementById('dca-custom-interval');
+  
+  if (frequencySelect && customIntervalDiv) {
+    frequencySelect.addEventListener('change', () => {
+      if (frequencySelect.value === 'custom') {
+        customIntervalDiv.style.display = 'block';
+      } else {
+        customIntervalDiv.style.display = 'none';
+      }
+    });
+  }
+  
+  // Direction change - update amount label
+  const directionSelect = document.getElementById('dca-direction');
+  const amountLabel = document.getElementById('dca-amount-label');
+  const amountHint = document.getElementById('dca-amount-hint');
+  
+  if (directionSelect && amountLabel && amountHint) {
+    directionSelect.addEventListener('change', () => {
+      if (directionSelect.value === 'buy') {
+        amountLabel.textContent = 'Total Amount (SOL)';
+        amountHint.textContent = 'Total SOL to spend buying tokens';
+      } else {
+        amountLabel.textContent = 'Total Amount (Tokens)';
+        amountHint.textContent = 'Total tokens to sell for SOL';
+      }
+    });
+  }
+  
+  // Token dropdown sync
+  const tokenSelect = document.getElementById('dca-token-select');
+  const tokenInput = document.getElementById('dca-token');
+  if (tokenSelect && tokenInput) {
+    tokenSelect.addEventListener('change', () => {
+      if (tokenSelect.value) {
+        tokenInput.value = tokenSelect.value;
+      }
+    });
+  }
+  
+  // Create DCA Strategy Button
+  const createDCABtn = document.getElementById('create-dca-btn');
+  if (createDCABtn) {
+    createDCABtn.addEventListener('click', async () => {
+      await createDCAStrategy();
+    });
+  }
+}
+
+async function createDCAStrategy() {
+  const statusEl = document.getElementById('dca-status');
+  const createBtn = document.getElementById('create-dca-btn');
+  
+  try {
+    // Get form values
+    const tokenSelect = document.getElementById('dca-token-select').value;
+    const tokenInput = document.getElementById('dca-token').value.trim();
+    const tokenMint = tokenSelect || tokenInput;
+    const walletId = document.getElementById('dca-wallet-select').value;
+    const direction = document.getElementById('dca-direction').value;
+    const totalAmount = parseFloat(document.getElementById('dca-amount').value);
+    const numOrders = parseInt(document.getElementById('dca-orders').value);
+    const frequency = document.getElementById('dca-frequency').value;
+    const customInterval = parseInt(document.getElementById('dca-interval-minutes').value || '60');
+    const slippage = parseFloat(document.getElementById('dca-slippage').value);
+    const priorityFee = parseInt(document.getElementById('dca-priority-fee').value);
+    
+    // Validation
+    if (!tokenMint) {
+      showStatus(statusEl, '❌ Please enter a token address', 'error');
+      return;
+    }
+    
+    if (!walletId) {
+      showStatus(statusEl, '❌ Please select a wallet', 'error');
+      return;
+    }
+    
+    if (!totalAmount || totalAmount <= 0) {
+      showStatus(statusEl, '❌ Please enter a valid total amount', 'error');
+      return;
+    }
+    
+    if (!numOrders || numOrders < 1) {
+      showStatus(statusEl, '❌ Please enter a valid number of orders', 'error');
+      return;
+    }
+    
+    // Calculate interval in minutes
+    let intervalMinutes;
+    switch (frequency) {
+      case 'hourly': intervalMinutes = 60; break;
+      case '2h': intervalMinutes = 120; break;
+      case '4h': intervalMinutes = 240; break;
+      case '6h': intervalMinutes = 360; break;
+      case 'daily': intervalMinutes = 1440; break;
+      case 'custom': intervalMinutes = customInterval; break;
+      default: intervalMinutes = 60;
+    }
+    
+    // Prepare config
+    const config = {
+      tokenMint,
+      tokenAddress: tokenMint, // Backend expects tokenAddress
+      walletId: walletId, // Selected wallet
+      direction,
+      totalAmount,
+      numberOfOrders: numOrders, // Backend expects numberOfOrders
+      frequency: frequency, // Pass frequency string
+      customIntervalMinutes: frequency === 'custom' ? customInterval : undefined,
+      slippageBps: Math.floor(slippage * 100), // Convert to basis points
+      priorityFeeLamports: priorityFee,
+    };
+    
+    console.log('Creating DCA strategy with config:', config);
+    
+    // Disable button
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating Strategy...';
+    showStatus(statusEl, '⏳ Creating DCA strategy...', 'info');
+    
+    // Call backend
+    if (!window.electron || !window.electron.strategy) {
+      throw new Error('Strategy API not available');
+    }
+    
+    const result = await window.electron.strategy.dca.create(config);
+    
+    if (result.success) {
+      showStatus(statusEl, `✅ DCA Strategy #${result.strategyId} created successfully!`, 'success');
+      
+      // Clear form
+      document.getElementById('dca-token').value = '';
+      document.getElementById('dca-amount').value = '';
+      document.getElementById('dca-orders').value = '';
+      
+      // Go to dashboard after 2 seconds
+      setTimeout(() => {
+        showPage('dashboard');
+      }, 2000);
+    } else {
+      showStatus(statusEl, `❌ Failed to create strategy: ${result.error || 'Unknown error'}`, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error creating DCA strategy:', error);
+    showStatus(statusEl, `❌ Error: ${error.message}`, 'error');
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = 'Create DCA Strategy';
+  }
+}
+
+function setupRatioPage() {
+  // Token dropdown sync
+  const tokenSelect = document.getElementById('ratio-token-select');
+  const tokenInput = document.getElementById('ratio-token');
+  if (tokenSelect && tokenInput) {
+    tokenSelect.addEventListener('change', () => {
+      if (tokenSelect.value) {
+        tokenInput.value = tokenSelect.value;
+      }
+    });
+  }
+  
+  // Create Ratio Strategy Button
+  const createRatioBtn = document.getElementById('create-ratio-btn');
+  if (createRatioBtn) {
+    createRatioBtn.addEventListener('click', async () => {
+      await createRatioStrategy();
+    });
+  }
+  
+  console.log('Ratio page setup ready');
+}
+
+async function createRatioStrategy() {
+  const statusEl = document.getElementById('ratio-status');
+  const createBtn = document.getElementById('create-ratio-btn');
+  
+  try {
+    // Get form values
+    const tokenSelect = document.getElementById('ratio-token-select').value;
+    const tokenInput = document.getElementById('ratio-token').value.trim();
+    const tokenMint = tokenSelect || tokenInput;
+    const walletId = document.getElementById('ratio-wallet-select').value;
+    
+    const buyCount = parseInt(document.getElementById('ratio-buy-count').value);
+    const sellCount = parseInt(document.getElementById('ratio-sell-count').value);
+    const initialSol = parseFloat(document.getElementById('ratio-initial-sol').value);
+    const totalSolLimit = parseFloat(document.getElementById('ratio-total-sol').value);
+    const intervalMinutes = parseInt(document.getElementById('ratio-interval').value);
+    
+    const slippage = parseFloat(document.getElementById('ratio-slippage').value);
+    const priorityFee = parseInt(document.getElementById('ratio-priority-fee').value);
+    const randomizeTiming = document.getElementById('ratio-randomize').checked;
+    const useMultiWallets = document.getElementById('ratio-multi-wallet').checked;
+    
+    // Validation
+    if (!tokenMint) {
+      showStatus(statusEl, '❌ Please enter a token address', 'error');
+      return;
+    }
+    
+    if (!walletId) {
+      showStatus(statusEl, '❌ Please select a wallet', 'error');
+      return;
+    }
+    
+    if (!buyCount || buyCount < 1) {
+      showStatus(statusEl, '❌ Number of buys must be at least 1', 'error');
+      return;
+    }
+    
+    if (!sellCount || sellCount < 1) {
+      showStatus(statusEl, '❌ Number of sells must be at least 1', 'error');
+      return;
+    }
+    
+    if (!initialSol || initialSol <= 0) {
+      showStatus(statusEl, '❌ Initial SOL must be greater than 0', 'error');
+      return;
+    }
+    
+    if (!totalSolLimit || totalSolLimit <= 0) {
+      showStatus(statusEl, '❌ Total SOL limit must be greater than 0', 'error');
+      return;
+    }
+    
+    if (initialSol >= totalSolLimit) {
+      showStatus(statusEl, '❌ Total SOL limit must be greater than initial SOL', 'error');
+      return;
+    }
+    
+    if (!intervalMinutes || intervalMinutes < 1) {
+      showStatus(statusEl, '❌ Interval must be at least 1 minute', 'error');
+      return;
+    }
+    
+    // Prepare config
+    const config = {
+      tokenAddress: tokenMint,
+      walletId: walletId,
+      buyCount: buyCount,
+      sellCount: sellCount,
+      initialSolPerTrade: initialSol,
+      totalSolLimit: totalSolLimit,
+      intervalMinutes: intervalMinutes,
+      slippageBps: Math.floor(slippage * 100),
+      priorityFeeLamports: priorityFee,
+      randomizeTiming: randomizeTiming,
+      useMultipleWallets: useMultiWallets,
+    };
+    
+    console.log('Creating Ratio strategy with config:', config);
+    
+    // Disable button
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating Strategy...';
+    showStatus(statusEl, '⏳ Creating Ratio strategy...', 'info');
+    
+    // Call backend
+    if (!window.electron || !window.electron.strategy) {
+      throw new Error('Strategy API not available');
+    }
+    
+    const result = await window.electron.strategy.ratio.create(config);
+    
+    if (result.success) {
+      showStatus(statusEl, `✅ Ratio Strategy #${result.strategyId} created successfully!`, 'success');
+      
+      // Clear form
+      document.getElementById('ratio-token').value = '';
+      
+      // Show info about the strategy
+      setTimeout(() => {
+        alert(
+          `✅ Ratio Strategy Created!\n\n` +
+          `Pattern: ${buyCount} buys : ${sellCount} sells\n` +
+          `Initial trade: ${initialSol} SOL\n` +
+          `Will run until ${totalSolLimit} SOL total used\n\n` +
+          `Go to Dashboard to start it!`
+        );
+        showPage('dashboard');
+      }, 1000);
+    } else {
+      showStatus(statusEl, `❌ Failed to create strategy: ${result.error || 'Unknown error'}`, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error creating Ratio strategy:', error);
+    showStatus(statusEl, `❌ Error: ${error.message}`, 'error');
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = 'Create Ratio Strategy';
+  }
+}
+
+function setupBundlePage() {
+  // Token dropdown sync
+  const tokenSelect = document.getElementById('bundle-token-select');
+  const tokenInput = document.getElementById('bundle-token');
+  if (tokenSelect && tokenInput) {
+    tokenSelect.addEventListener('change', () => {
+      if (tokenSelect.value) {
+        tokenInput.value = tokenSelect.value;
+      }
+    });
+  }
+  
+  // Bundle type toggle - show/hide delay field
+  const instantRadio = document.getElementById('bundle-type-instant');
+  const delayedRadio = document.getElementById('bundle-type-delayed');
+  const delayField = document.getElementById('bundle-delay-field');
+  
+  if (instantRadio && delayedRadio && delayField) {
+    instantRadio.addEventListener('change', () => {
+      if (instantRadio.checked) {
+        delayField.style.display = 'none';
+      }
+    });
+    
+    delayedRadio.addEventListener('change', () => {
+      if (delayedRadio.checked) {
+        delayField.style.display = 'block';
+      }
+    });
+  }
+  
+  // Create Bundle Strategy Button
+  const createBundleBtn = document.getElementById('create-bundle-btn');
+  if (createBundleBtn) {
+    createBundleBtn.addEventListener('click', async () => {
+      await createBundleStrategy();
+    });
+  }
+  
+  console.log('Bundle page setup ready');
+}
+
+async function createBundleStrategy() {
+  const statusEl = document.getElementById('bundle-status');
+  const createBtn = document.getElementById('create-bundle-btn');
+  
+  try {
+    // Get form values
+    const tokenSelect = document.getElementById('bundle-token-select').value;
+    const tokenInput = document.getElementById('bundle-token').value.trim();
+    const tokenMint = tokenSelect || tokenInput;
+    const walletId = document.getElementById('bundle-wallet-select').value;
+    
+    const bundleType = document.getElementById('bundle-type-instant').checked ? 'instant' : 'delayed';
+    const buysPerBundle = parseInt(document.getElementById('bundle-buys-count').value);
+    const totalBundles = parseInt(document.getElementById('bundle-total-count').value);
+    const minBuyAmount = parseFloat(document.getElementById('bundle-min-buy').value);
+    const maxBuyAmount = parseFloat(document.getElementById('bundle-max-buy').value);
+    const bundleInterval = parseInt(document.getElementById('bundle-interval').value);
+    const tradeDelay = parseInt(document.getElementById('bundle-trade-delay').value || '10');
+    
+    const slippage = parseFloat(document.getElementById('bundle-slippage').value);
+    const priorityFee = parseInt(document.getElementById('bundle-priority-fee').value);
+    const useMultiWallets = document.getElementById('bundle-multi-wallet').checked;
+    
+    // Validation
+    if (!tokenMint) {
+      showStatus(statusEl, '❌ Please enter a token address', 'error');
+      return;
+    }
+    
+    if (!walletId) {
+      showStatus(statusEl, '❌ Please select a wallet', 'error');
+      return;
+    }
+    
+    if (!buysPerBundle || buysPerBundle < 2 || buysPerBundle > 5) {
+      showStatus(statusEl, '❌ Buys per bundle must be between 2-5', 'error');
+      return;
+    }
+    
+    if (!totalBundles || totalBundles < 1) {
+      showStatus(statusEl, '❌ Total bundles must be at least 1', 'error');
+      return;
+    }
+    
+    if (!minBuyAmount || minBuyAmount <= 0) {
+      showStatus(statusEl, '❌ Min buy amount must be greater than 0', 'error');
+      return;
+    }
+    
+    if (!maxBuyAmount || maxBuyAmount <= minBuyAmount) {
+      showStatus(statusEl, '❌ Max buy amount must be greater than min', 'error');
+      return;
+    }
+    
+    if (!bundleInterval || bundleInterval < 1) {
+      showStatus(statusEl, '❌ Bundle interval must be at least 1 minute', 'error');
+      return;
+    }
+    
+    // Prepare config
+    const config = {
+      tokenAddress: tokenMint,
+      walletId: walletId,
+      bundleType: bundleType,
+      buysPerBundle: buysPerBundle,
+      minBuyAmount: minBuyAmount,
+      maxBuyAmount: maxBuyAmount,
+      bundleInterval: bundleInterval,
+      delayBetweenTrades: bundleType === 'delayed' ? tradeDelay : undefined,
+      totalBundles: totalBundles,
+      slippageBps: Math.floor(slippage * 100),
+      priorityFeeLamports: priorityFee,
+      useMultipleWallets: useMultiWallets,
+    };
+    
+    console.log('Creating Bundle Reconcile strategy with config:', config);
+    
+    // Disable button
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating Strategy...';
+    showStatus(statusEl, '⏳ Creating Bundle strategy...', 'info');
+    
+    // Call backend
+    if (!window.electron || !window.electron.strategy) {
+      throw new Error('Strategy API not available');
+    }
+    
+    const result = await window.electron.strategy.bundle.create(config);
+    
+    if (result.success) {
+      showStatus(statusEl, `✅ Bundle Strategy #${result.strategyId} created successfully!`, 'success');
+      
+      // Clear form
+      document.getElementById('bundle-token').value = '';
+      
+      // Show info about the strategy
+      setTimeout(() => {
+        const totalTrades = totalBundles * (buysPerBundle + 1); // buys + 1 reconciling sell
+        const typeDesc = bundleType === 'instant' ? 'Instant (fast)' : `Delayed (${tradeDelay}s between trades)`;
+        alert(
+          `✅ Bundle Reconcile Strategy Created!\n\n` +
+          `Type: ${typeDesc}\n` +
+          `Pattern: ${buysPerBundle} buys → 1 reconciling sell\n` +
+          `Total Bundles: ${totalBundles}\n` +
+          `Expected Trades: ${totalTrades}\n\n` +
+          `Go to Dashboard to start it!`
+        );
+        showPage('dashboard');
+      }, 1000);
+    } else {
+      showStatus(statusEl, `❌ Failed to create strategy: ${result.error || 'Unknown error'}`, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error creating Bundle strategy:', error);
+    showStatus(statusEl, `❌ Error: ${error.message}`, 'error');
+  } finally {
+    createBtn.disabled = false;
+    createBtn.textContent = 'Create Bundle Strategy';
+  }
+}
+
+function setupTokenManager() {
+  // Add Token Button
+  const addTokenBtn = document.getElementById('add-token-btn');
+  if (addTokenBtn) {
+    addTokenBtn.addEventListener('click', async () => {
+      await addToken();
+    });
+  }
+  
+  // Fetch Token Info Button
+  const fetchTokenInfoBtn = document.getElementById('fetch-token-info-btn');
+  if (fetchTokenInfoBtn) {
+    fetchTokenInfoBtn.addEventListener('click', async () => {
+      await fetchTokenInfo();
+    });
+  }
+  
+  // Clear Form Button
+  const clearTokenFormBtn = document.getElementById('clear-token-form-btn');
+  if (clearTokenFormBtn) {
+    clearTokenFormBtn.addEventListener('click', () => {
+      document.getElementById('token-name').value = '';
+      document.getElementById('token-symbol').value = '';
+      document.getElementById('token-address').value = '';
+      document.getElementById('token-notes').value = '';
+      const statusEl = document.getElementById('token-status');
+      if (statusEl) statusEl.style.display = 'none';
+    });
+  }
+  
+  // Also allow Enter key on address field to trigger fetch
+  const tokenAddressInput = document.getElementById('token-address');
+  if (tokenAddressInput) {
+    tokenAddressInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        fetchTokenInfo();
+      }
+    });
+  }
+  
+  // Browse Jupiter Tokens Button
+  const browseJupiterBtn = document.getElementById('browse-jupiter-tokens-btn');
+  if (browseJupiterBtn) {
+    browseJupiterBtn.addEventListener('click', async () => {
+      await showJupiterTokenBrowser();
+    });
+  }
+  
+  // Close Jupiter Browser Button
+  const closeJupiterBrowserBtn = document.getElementById('close-jupiter-browser-btn');
+  if (closeJupiterBrowserBtn) {
+    closeJupiterBrowserBtn.addEventListener('click', () => {
+      document.getElementById('jupiter-tokens-browser').style.display = 'none';
+    });
+  }
+  
+  // Jupiter Token Search
+  const jupiterTokenSearch = document.getElementById('jupiter-token-search');
+  if (jupiterTokenSearch) {
+    jupiterTokenSearch.addEventListener('input', (e) => {
+      filterJupiterTokens(e.target.value);
+    });
+  }
+}
+
+async function fetchTokenInfo() {
+  const statusEl = document.getElementById('token-status');
+  const fetchBtn = document.getElementById('fetch-token-info-btn');
+  const addressInput = document.getElementById('token-address');
+  const nameInput = document.getElementById('token-name');
+  const symbolInput = document.getElementById('token-symbol');
+  
+  try {
+    const address = addressInput.value.trim();
+    
+    if (!address) {
+      showStatus(statusEl, '❌ Please enter a token address first', 'error');
+      return;
+    }
+    
+    // Basic validation
+    if (address.length < 32 || address.length > 44) {
+      showStatus(statusEl, '❌ Invalid Solana token address format', 'error');
+      return;
+    }
+    
+    // Disable button and show loading
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = '⏳ Fetching...';
+    showStatus(statusEl, '🔍 Fetching comprehensive token data...', 'info');
+    
+    // Use the new enhanced backend API
+    if (window.electron && window.electron.jupiter) {
+      const result = await window.electron.jupiter.getTokenData(address);
+      
+      if (result.success && result.info) {
+        const { info, priceInSol, isTradeable, estimatedSlippage } = result;
+        
+        // Auto-fill form fields
+        if (info.name) {
+          nameInput.value = info.name;
+        }
+        if (info.symbol) {
+          symbolInput.value = info.symbol;
+        }
+        
+        // Build detailed status message
+        let statusMessage = `✅ Found: ${info.name || 'Token'} (${info.symbol || 'N/A'})`;
+        
+        // Add price if available
+        if (priceInSol > 0) {
+          const solPrice = 200; // Current SOL price (could fetch from API)
+          const priceUsd = priceInSol * solPrice;
+          statusMessage += ` • Price: ${priceInSol.toFixed(9)} SOL`;
+          if (priceUsd > 0.00001) {
+            statusMessage += ` ($${priceUsd.toFixed(6)})`;
+          }
+        }
+        
+        // Add decimals
+        statusMessage += ` • Decimals: ${info.decimals || 9}`;
+        
+        // Add tradeable status
+        if (isTradeable) {
+          statusMessage += ` • ✅ Tradeable`;
+          if (estimatedSlippage > 0) {
+            statusMessage += ` (est. ${estimatedSlippage.toFixed(2)}% slippage for 0.01 SOL)`;
+          }
+        } else {
+          statusMessage += ` • ⚠️ Not validated (may have low liquidity)`;
+        }
+        
+        showStatus(statusEl, statusMessage, 'success');
+        
+        console.log('✅ Enhanced token data fetched:', result);
+        
+        // Show logo if available
+        if (info.logoURI) {
+          // Could display logo here if you want
+          console.log('Token logo available:', info.logoURI);
+        }
+        
+      } else {
+        // Fallback to simple Jupiter API
+        console.log('Enhanced fetch failed, trying simple API...');
+        const jupiterTokensAPI = 'https://tokens.jup.ag/token/' + address;
+        
+        try {
+          const response = await fetch(jupiterTokensAPI);
+          
+          if (response.ok) {
+            const tokenData = await response.json();
+            
+            if (tokenData.name) nameInput.value = tokenData.name;
+            if (tokenData.symbol) symbolInput.value = tokenData.symbol;
+            
+            showStatus(statusEl, 
+              `✅ Found: ${tokenData.name || 'Token'} (${tokenData.symbol || 'N/A'}) • Decimals: ${tokenData.decimals || 9}`, 
+              'success'
+            );
+          } else {
+            showStatus(statusEl, 
+              '⚠️ Token not in Jupiter list. Please enter name manually. Token may be new/unlisted.', 
+              'warning'
+            );
+          }
+        } catch (fetchError) {
+          console.error('Jupiter API fetch error:', fetchError);
+          showStatus(statusEl, 
+            '⚠️ Could not fetch from Jupiter. Please enter token details manually.', 
+            'warning'
+          );
+        }
+      }
+    } else {
+      showStatus(statusEl, '❌ Backend API not available', 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error fetching token info:', error);
+    showStatus(statusEl, `❌ Error: ${error.message}`, 'error');
+  } finally {
+    fetchBtn.disabled = false;
+    fetchBtn.textContent = '🔍 Fetch Token Info';
+  }
+}
+
+async function addToken() {
+  const statusEl = document.getElementById('token-status');
+  const addBtn = document.getElementById('add-token-btn');
+  
+  try {
+    // Get form values
+    const name = document.getElementById('token-name').value.trim();
+    const symbol = document.getElementById('token-symbol').value.trim();
+    const address = document.getElementById('token-address').value.trim();
+    const notes = document.getElementById('token-notes').value.trim();
+    
+    // Validation
+    if (!name) {
+      showStatus(statusEl, '❌ Please enter a token name (or click "Fetch Token Info")', 'error');
+      return;
+    }
+    
+    if (!address) {
+      showStatus(statusEl, '❌ Please enter a token address', 'error');
+      return;
+    }
+    
+    // Basic Solana address validation (should be 32-44 characters)
+    if (address.length < 32 || address.length > 44) {
+      showStatus(statusEl, '❌ Invalid Solana token address', 'error');
+      return;
+    }
+    
+    // Disable button
+    addBtn.disabled = true;
+    addBtn.textContent = 'Adding Token...';
+    showStatus(statusEl, '⏳ Adding token...', 'info');
+    
+    // Call backend
+    if (!window.electron || !window.electron.token) {
+      throw new Error('Tokens API not available');
+    }
+    
+    const result = await window.electron.token.add({
+      name,
+      symbol: symbol || undefined,
+      contractAddress: address,
+      notes: notes || undefined,
+    });
+    
+    if (result.success) {
+      showStatus(statusEl, `✅ Token "${name}" added successfully!`, 'success');
+      
+      // Clear form
+      document.getElementById('token-name').value = '';
+      document.getElementById('token-symbol').value = '';
+      document.getElementById('token-address').value = '';
+      document.getElementById('token-notes').value = '';
+      
+      // Reload token list
+      loadTokens();
+    } else {
+      showStatus(statusEl, `❌ Failed to add token: ${result.error || 'Unknown error'}`, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error adding token:', error);
+    showStatus(statusEl, `❌ Error: ${error.message}`, 'error');
+  } finally {
+    addBtn.disabled = false;
+    addBtn.textContent = 'Add Token';
+  }
+}
+
+let jupiterTokensCache = [];
+
+async function showJupiterTokenBrowser() {
+  const browserSection = document.getElementById('jupiter-tokens-browser');
+  const jupiterTokensList = document.getElementById('jupiter-tokens-list');
+  
+  // Show the browser section
+  browserSection.style.display = 'block';
+  browserSection.scrollIntoView({ behavior: 'smooth' });
+  
+  try {
+    jupiterTokensList.innerHTML = '<div class="empty-state">⏳ Loading verified tokens from Jupiter...</div>';
+    
+    // Fetch all verified tokens from Jupiter
+    const response = await fetch('https://tokens.jup.ag/tokens?tags=verified');
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch Jupiter tokens');
+    }
+    
+    const tokens = await response.json();
+    jupiterTokensCache = tokens;
+    
+    console.log(`✅ Loaded ${tokens.length} verified tokens from Jupiter`);
+    
+    // Display tokens
+    renderJupiterTokens(tokens);
+    
+  } catch (error) {
+    console.error('Error loading Jupiter tokens:', error);
+    jupiterTokensList.innerHTML = '<div class="empty-state">❌ Failed to load Jupiter tokens. Check your connection.</div>';
+  }
+}
+
+function renderJupiterTokens(tokens) {
+  const jupiterTokensList = document.getElementById('jupiter-tokens-list');
+  
+  if (tokens.length === 0) {
+    jupiterTokensList.innerHTML = '<div class="empty-state">No tokens found</div>';
+    return;
+  }
+  
+  // Show first 100 tokens (for performance)
+  const displayTokens = tokens.slice(0, 100);
+  
+  jupiterTokensList.innerHTML = displayTokens.map(token => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #34495e; cursor: pointer;" 
+         onclick="selectJupiterToken('${token.address}', '${token.name.replace(/'/g, "\\'")}', '${token.symbol}')">
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${token.logoURI ? `<img src="${token.logoURI}" style="width: 24px; height: 24px; border-radius: 50%;" onerror="this.style.display='none'" />` : ''}
+          <div>
+            <div style="font-size: 13px; font-weight: bold; color: #fff;">${token.name}</div>
+            <div style="font-size: 11px; color: #7f8c8d;">${token.symbol}</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size: 10px; color: #7f8c8d; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">
+        ${token.address.substring(0, 8)}...${token.address.substring(token.address.length - 6)}
+      </div>
+      <button class="btn btn-small" style="background: #27ae60; min-width: 60px;" onclick="event.stopPropagation(); selectJupiterToken('${token.address}', '${token.name.replace(/'/g, "\\'")}', '${token.symbol}')">
+        ➕ Add
+      </button>
+    </div>
+  `).join('');
+  
+  if (tokens.length > 100) {
+    jupiterTokensList.innerHTML += `<div style="padding: 10px; text-align: center; color: #7f8c8d; font-size: 12px;">Showing first 100 tokens. Use search to find more.</div>`;
+  }
+}
+
+function filterJupiterTokens(searchTerm) {
+  if (!jupiterTokensCache || jupiterTokensCache.length === 0) {
+    return;
+  }
+  
+  const term = searchTerm.toLowerCase().trim();
+  
+  if (!term) {
+    renderJupiterTokens(jupiterTokensCache);
+    return;
+  }
+  
+  const filtered = jupiterTokensCache.filter(token => 
+    token.name.toLowerCase().includes(term) ||
+    token.symbol.toLowerCase().includes(term) ||
+    token.address.toLowerCase().includes(term)
+  );
+  
+  console.log(`Found ${filtered.length} matching tokens for: ${searchTerm}`);
+  renderJupiterTokens(filtered);
+}
+
+function selectJupiterToken(address, name, symbol) {
+  // Fill in the add token form
+  document.getElementById('token-address').value = address;
+  document.getElementById('token-name').value = name;
+  document.getElementById('token-symbol').value = symbol;
+  
+  // Scroll to form
+  document.getElementById('tokens-page').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  
+  // Hide Jupiter browser
+  document.getElementById('jupiter-tokens-browser').style.display = 'none';
+  
+  // Show success message
+  const statusEl = document.getElementById('token-status');
+  showStatus(statusEl, `✅ Selected: ${name} (${symbol}) - Click "Add Token" to save it`, 'success');
+}
+
+async function loadTokens() {
+  console.log('Loading tokens...');
+  const tokensList = document.getElementById('tokens-list');
+  
+  if (!tokensList) {
+    console.error('Tokens list element not found');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    tokensList.innerHTML = '<div class="empty-state">Loading tokens...</div>';
+    
+    if (!window.electron || !window.electron.token) {
+      console.error('Electron tokens API not available');
+      tokensList.innerHTML = '<div class="empty-state">⚠️ Tokens API not available</div>';
+      return;
+    }
+    
+    // Get all tokens
+    const response = await window.electron.token.list();
+    
+    console.log('Tokens loaded:', response);
+    
+    if (!response || !response.success) {
+      tokensList.innerHTML = `<div class="empty-state">❌ Error: ${response?.error || 'Failed to load tokens'}</div>`;
+      return;
+    }
+    
+    const tokens = response.tokens || [];
+    
+    if (tokens.length === 0) {
+      tokensList.innerHTML = '<div class="empty-state">No tokens added yet. Add your first token above!</div>';
+      return;
+    }
+    
+    // Display tokens
+    tokensList.innerHTML = '';
+    tokens.forEach((token) => {
+      const tokenCard = document.createElement('div');
+      tokenCard.className = 'token-card';
+      tokenCard.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+              <strong style="font-size: 16px;">${token.name}</strong>
+              ${token.symbol ? `<span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${token.symbol}</span>` : ''}
+            </div>
+            <div style="font-family: monospace; font-size: 12px; color: #7f8c8d; word-break: break-all; margin-bottom: 5px;">
+              ${token.contract_address}
+            </div>
+            ${token.notes ? `<div style="font-size: 12px; color: #95a5a6; margin-top: 5px;">${token.notes}</div>` : ''}
+          </div>
+          <div style="display: flex; gap: 5px;">
+            <button class="btn btn-icon" onclick="copyToClipboard('${token.contract_address}')" title="Copy Address">
+              📋
+            </button>
+            <button class="btn btn-icon" onclick="deleteToken(${token.id})" title="Delete Token" style="background: #e74c3c;">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `;
+      tokensList.appendChild(tokenCard);
+    });
+    
+    console.log(`✅ Loaded ${tokens.length} token(s)`);
+    
+  } catch (error) {
+    console.error('Error loading tokens:', error);
+    tokensList.innerHTML = `<div class="empty-state">❌ Error loading tokens: ${error.message}</div>`;
+  }
+}
+
+async function deleteToken(tokenId) {
+  if (!confirm('Are you sure you want to delete this token?')) {
+    return;
+  }
+  
+  try {
+    const result = await window.electron.token.delete(tokenId);
+    if (result.success) {
+      console.log('✅ Token deleted');
+      loadTokens(); // Refresh list
+    } else {
+      alert(`Failed to delete token: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error deleting token:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+async function populateTokenDropdowns() {
+  console.log('Populating token dropdowns...');
+  
+  try {
+    if (!window.electron || !window.electron.token) {
+      console.warn('Tokens API not available');
+      return;
+    }
+    
+    // Get all tokens
+    const response = await window.electron.token.list();
+    
+    if (!response || !response.success) {
+      console.error('Failed to load tokens for dropdown');
+      return;
+    }
+    
+    const tokens = response.tokens || [];
+    
+    // Populate all token dropdowns
+    const dropdownIds = [
+      'dca-token-select',
+      'ratio-token-select',
+      'bundle-token-select',
+      'withdraw-token-select'
+    ];
+    
+    dropdownIds.forEach(dropdownId => {
+      const dropdown = document.getElementById(dropdownId);
+      if (dropdown) {
+        // Keep the first option (placeholder)
+        const firstOption = dropdown.options[0];
+        dropdown.innerHTML = '';
+        dropdown.appendChild(firstOption);
+        
+        // Add token options
+        tokens.forEach(token => {
+          const option = document.createElement('option');
+          option.value = token.contract_address;
+          option.textContent = `${token.name}${token.symbol ? ` (${token.symbol})` : ''} - ${token.contract_address.substring(0, 8)}...`;
+          dropdown.appendChild(option);
+        });
+        
+        console.log(`✅ Populated ${dropdownId} with ${tokens.length} tokens`);
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error populating token dropdowns:', error);
+  }
+}
+
+async function populateWalletDropdowns() {
+  console.log('Populating wallet dropdowns...');
+  
+  try {
+    if (!window.electron || !window.electron.wallet) {
+      console.warn('Wallet API not available');
+      return;
+    }
+    
+    // Get all wallets
+    const response = await window.electron.wallet.getAllWithBalances();
+    
+    if (!response || !response.success) {
+      console.error('Failed to load wallets for dropdown');
+      return;
+    }
+    
+    const wallets = response.wallets || [];
+    
+    // Populate all wallet dropdowns
+    const dropdownIds = [
+      'dca-wallet-select',
+      'ratio-wallet-select',
+      'bundle-wallet-select'
+    ];
+    
+    dropdownIds.forEach(dropdownId => {
+      const dropdown = document.getElementById(dropdownId);
+      if (dropdown) {
+        // Keep the first option (placeholder)
+        const firstOption = dropdown.options[0];
+        dropdown.innerHTML = '';
+        dropdown.appendChild(firstOption);
+        
+        // Add wallet options
+        wallets.forEach((wallet, index) => {
+          const option = document.createElement('option');
+          option.value = wallet.id || wallet.publicKey; // Use wallet ID if available, fallback to publicKey
+          const label = wallet.label || `Wallet ${index + 1}`;
+          const shortAddress = wallet.publicKey.substring(0, 8) + '...';
+          const balance = (wallet.balance || 0).toFixed(4);
+          option.textContent = `${label} (${shortAddress}) - ${balance} SOL`;
+          dropdown.appendChild(option);
+        });
+        
+        console.log(`✅ Populated ${dropdownId} with ${wallets.length} wallet(s)`);
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error populating wallet dropdowns:', error);
+  }
+}
+
+function showStatus(element, message, type) {
+  if (element) {
+    element.textContent = message;
+    element.className = `status-message ${type}`;
+    element.style.display = 'block';
+    
+    if (type === 'success' || type === 'error') {
+      setTimeout(() => {
+        element.style.display = 'none';
+      }, 5000);
+    }
+  }
+}
+
+function setupPasswordToggles() {
+  const toggleButtons = document.querySelectorAll('.password-toggle');
+  toggleButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wrapper = btn.closest('.password-input-wrapper');
+      const input = wrapper.querySelector('input');
+      const icon = btn.querySelector('.password-toggle-icon');
+      
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = '🙈';
+      } else {
+        input.type = 'password';
+        icon.textContent = '👁️';
+      }
+    });
+  });
+}
+
+function showSuccessMessage(htmlContent) {
+  const successMessage = document.getElementById('success-message');
+  successMessage.innerHTML = htmlContent;
+  showModal('success-modal');
 }
 
 function setupLicenseActivation() {
@@ -212,6 +1518,119 @@ function showPage(pageName) {
   if (selectedPage) {
     selectedPage.classList.add('active');
   }
+  
+  // Load data based on page
+  if (pageName === 'wallet') {
+    loadAllWallets();
+  } else if (pageName === 'dashboard') {
+    loadStrategies();
+  } else if (pageName === 'tokens') {
+    loadTokens();
+  } else if (pageName === 'activity') {
+    loadActivityLogs();
+  } else if (pageName === 'trades') {
+    loadTradesData();
+  } else if (pageName === 'archive') {
+    loadArchivedStrategies();
+  } else if (pageName === 'dca' || pageName === 'ratio' || pageName === 'bundle') {
+    populateTokenDropdowns();
+    populateWalletDropdowns();
+  }
+}
+
+async function checkWalletAndShowScreen() {
+  try {
+    // Check if any wallet exists
+    if (window.electron && window.electron.wallet) {
+      const walletsResult = await window.electron.wallet.list();
+      
+      if (walletsResult.success && walletsResult.wallets && walletsResult.wallets.length > 0) {
+        // Wallet exists - show unlock screen
+        console.log('✅ Wallet found - showing unlock screen');
+        showUnlockScreen();
+        setupUnlockButton();
+      } else {
+        // No wallet - go directly to main app (will show wallet creation page)
+        console.log('⚠️ No wallet found - showing main app');
+        showMainApp();
+      }
+    } else {
+      // Electron API not loaded - show main app
+      console.warn('Electron API not available - showing main app');
+      showMainApp();
+    }
+  } catch (error) {
+    console.error('Error checking wallet:', error);
+    // On error, show main app
+    showMainApp();
+  }
+}
+
+function showUnlockScreen() {
+  document.getElementById('unlock-screen').style.display = 'flex';
+  document.getElementById('main-app').style.display = 'none';
+  
+  // Focus on password input
+  setTimeout(() => {
+    const passwordInput = document.getElementById('unlock-password');
+    if (passwordInput) {
+      passwordInput.focus();
+    }
+  }, 100);
+}
+
+function setupUnlockButton() {
+  const unlockBtn = document.getElementById('unlock-btn');
+  const unlockPassword = document.getElementById('unlock-password');
+  const unlockError = document.getElementById('unlock-error');
+  
+  if (unlockBtn && unlockPassword) {
+    // Remove any existing listeners
+    const newUnlockBtn = unlockBtn.cloneNode(true);
+    unlockBtn.parentNode.replaceChild(newUnlockBtn, unlockBtn);
+    
+    newUnlockBtn.addEventListener('click', async () => {
+      const password = unlockPassword.value;
+      
+      if (!password) {
+        if (unlockError) {
+          unlockError.textContent = 'Please enter your password';
+          unlockError.style.display = 'block';
+        }
+        return;
+      }
+      
+      try {
+        console.log('Attempting to unlock wallet...');
+        newUnlockBtn.disabled = true;
+        newUnlockBtn.textContent = 'Unlocking...';
+        
+        const result = await window.electron.wallet.unlock(password);
+        
+        if (result.success) {
+          console.log('✅ Wallet unlocked successfully!');
+          showMainApp();
+        } else {
+          throw new Error(result.error || 'Failed to unlock wallet');
+        }
+      } catch (error) {
+        console.error('❌ Unlock failed:', error);
+        if (unlockError) {
+          unlockError.textContent = error.message || 'Incorrect password';
+          unlockError.style.display = 'block';
+        }
+        newUnlockBtn.disabled = false;
+        newUnlockBtn.textContent = 'Unlock Wallet';
+      }
+    });
+    
+    // Also allow Enter key to unlock
+    unlockPassword.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        newUnlockBtn.click();
+      }
+    });
+  }
 }
 
 function showMainApp() {
@@ -220,6 +1639,40 @@ function showMainApp() {
   
   // Load license info from backend
   loadLicenseInfo();
+  
+  // Load strategies on dashboard
+  loadStrategies();
+  
+  // Setup dashboard refresh button
+  const refreshStrategiesBtn = document.getElementById('refresh-strategies-btn');
+  if (refreshStrategiesBtn) {
+    refreshStrategiesBtn.addEventListener('click', () => {
+      console.log('Refreshing strategies...');
+      loadStrategies();
+    });
+  }
+  
+  // Setup lock wallet button
+  setupLockWalletButton();
+}
+
+function setupLockWalletButton() {
+  const lockBtn = document.getElementById('lock-wallet-btn');
+  if (lockBtn) {
+    lockBtn.addEventListener('click', async () => {
+      try {
+        console.log('Locking wallet...');
+        const result = await window.electron.wallet.lock();
+        if (result.success) {
+          console.log('✅ Wallet locked');
+          showUnlockScreen();
+          setupUnlockButton();
+        }
+      } catch (error) {
+        console.error('❌ Failed to lock wallet:', error);
+      }
+    });
+  }
 }
 
 function showError(elementId, message) {
@@ -328,5 +1781,1084 @@ function showLicenseStatus(message, type) {
   }
 }
 
+async function loadAllWallets() {
+  console.log('Loading all wallets...');
+  const walletsList = document.getElementById('all-wallets-list');
+  
+  if (!walletsList) {
+    console.error('Wallet list element not found');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    walletsList.innerHTML = '<div class="empty-state">Loading wallets...</div>';
+    
+    if (!window.electron || !window.electron.wallet) {
+      console.error('Electron wallet API not available');
+      walletsList.innerHTML = '<div class="empty-state">⚠️ Wallet API not available</div>';
+      return;
+    }
+    
+    // Get all wallets with balances
+    const response = await window.electron.wallet.getAllWithBalances();
+    
+    console.log('Wallet response:', response);
+    
+    if (!response || !response.success) {
+      walletsList.innerHTML = `<div class="empty-state">❌ Error: ${response?.error || 'Failed to load wallets'}</div>`;
+      return;
+    }
+    
+    const wallets = response.wallets || [];
+    
+    if (wallets.length === 0) {
+      walletsList.innerHTML = '<div class="empty-state">No wallets yet. Create or import a wallet to get started!</div>';
+      return;
+    }
+    
+    // Display wallets
+    walletsList.innerHTML = '';
+    wallets.forEach((wallet, index) => {
+      const walletCard = document.createElement('div');
+      walletCard.className = 'wallet-card';
+      
+      // Build token balances HTML
+      let tokensHTML = '';
+      if (wallet.tokens && wallet.tokens.length > 0) {
+        tokensHTML = `
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #34495e;">
+            <div style="color: #7f8c8d; font-size: 12px; margin-bottom: 8px;">🪙 Token Holdings:</div>
+            <div style="display: grid; gap: 6px;">
+              ${wallet.tokens.map(token => `
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 8px; background: #2c3e50; border-radius: 4px;">
+                  <div style="flex: 1;">
+                    <strong>${token.name || token.symbol || 'Unknown Token'}</strong>
+                    ${token.symbol && token.name ? `<span style="color: #95a5a6; margin-left: 5px;">(${token.symbol})</span>` : ''}
+                  </div>
+                  <div style="color: #3498db; font-weight: bold;">${token.uiAmount.toLocaleString()}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="font-size: 10px; color: #95a5a6; margin-top: 6px;">
+              💡 Showing ${wallet.tokens.length} token(s) with balance > 0
+            </div>
+          </div>
+        `;
+      } else {
+        tokensHTML = `
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #34495e;">
+            <div style="color: #7f8c8d; font-size: 11px;">No tokens in this wallet</div>
+          </div>
+        `;
+      }
+      
+      walletCard.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <strong style="font-size: 16px;">${wallet.label || `Wallet ${index + 1}`}</strong>
+              ${index === 0 ? '<span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">MAIN</span>' : ''}
+            </div>
+            <div style="font-family: monospace; font-size: 12px; color: #7f8c8d; word-break: break-all; margin-bottom: 8px;">
+              ${wallet.publicKey}
+            </div>
+            <div style="display: flex; gap: 15px; margin-top: 10px;">
+              <div>
+                <span style="color: #7f8c8d; font-size: 12px;">💰 SOL Balance:</span>
+                <strong style="color: #27ae60; margin-left: 5px;">${(wallet.balance || 0).toFixed(4)} SOL</strong>
+              </div>
+            </div>
+            ${tokensHTML}
+          </div>
+          <button class="btn btn-icon" onclick="copyToClipboard('${wallet.publicKey}')" title="Copy Address">
+            📋
+          </button>
+        </div>
+      `;
+      walletsList.appendChild(walletCard);
+    });
+    
+    console.log(`✅ Loaded ${wallets.length} wallet(s)`);
+    
+  } catch (error) {
+    console.error('Error loading wallets:', error);
+    walletsList.innerHTML = `<div class="empty-state">❌ Error loading wallets: ${error.message}</div>`;
+  }
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      console.log('✅ Copied to clipboard:', text);
+      // Show a temporary success message
+      const toast = document.createElement('div');
+      toast.textContent = '✅ Copied to clipboard!';
+      toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 4px; z-index: 10000;';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+    });
+  } else {
+    console.warn('Clipboard API not available');
+  }
+}
+
+async function loadDashboardStats() {
+  try {
+    if (!window.electron || !window.electron.stats) {
+      console.warn('Stats API not available');
+      return;
+    }
+    
+    const response = await window.electron.stats.getDashboard();
+    
+    if (response && response.success) {
+      const stats = response.stats;
+      
+      // Update stat cards
+      document.getElementById('total-trades').textContent = stats.totalTrades || 0;
+      
+      const todayVolumeEl = document.getElementById('today-volume');
+      if (todayVolumeEl) {
+        todayVolumeEl.textContent = `${(stats.todayVolume || 0).toFixed(4)} SOL`;
+      }
+      
+      console.log(`📊 Dashboard stats loaded: ${stats.totalTrades} trades, ${stats.todayVolume} SOL today`);
+    }
+  } catch (error) {
+    console.error('Error loading dashboard stats:', error);
+  }
+}
+
+async function loadStrategies() {
+  console.log('Loading all strategies...');
+  const strategiesList = document.getElementById('strategies-list');
+  
+  if (!strategiesList) {
+    console.error('Strategies list element not found');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    strategiesList.innerHTML = '<div class="empty-state">Loading strategies...</div>';
+    
+    if (!window.electron || !window.electron.strategy) {
+      console.error('Electron strategy API not available');
+      strategiesList.innerHTML = '<div class="empty-state">⚠️ Strategy API not available</div>';
+      return;
+    }
+    
+    // Get all strategies
+    const response = await window.electron.strategy.getAll();
+    
+    // Also load dashboard stats
+    await loadDashboardStats();
+    
+    console.log('Strategies response:', response);
+    
+    if (!response || !response.success) {
+      strategiesList.innerHTML = `<div class="empty-state">❌ Error: ${response?.error || 'Failed to load strategies'}</div>`;
+      return;
+    }
+    
+    const strategies = response.strategies || [];
+    
+    if (strategies.length === 0) {
+      strategiesList.innerHTML = '<div class="empty-state">No active strategies. Create one to get started!</div>';
+      return;
+    }
+    
+    // Display strategies
+    strategiesList.innerHTML = '';
+    strategies.forEach(async (strategy) => {
+      const strategyCard = document.createElement('div');
+      strategyCard.className = 'strategy-card';
+      
+      // Determine strategy type and icon
+      let typeLabel = 'Unknown';
+      let typeIcon = '📊';
+      if (strategy.type === 'dca') {
+        typeLabel = 'DCA';
+        typeIcon = '📈';
+      } else if (strategy.type === 'ratio') {
+        typeLabel = 'Ratio Trading';
+        typeIcon = '🎯';
+      } else if (strategy.type === 'bundle') {
+        typeLabel = 'Bundle';
+        typeIcon = '📦';
+      }
+      
+      // Status badge
+      let statusBadge = '';
+      let statusColor = '#95a5a6';
+      if (strategy.status === 'active') {
+        statusBadge = '🟢 Active';
+        statusColor = '#27ae60';
+      } else if (strategy.status === 'paused') {
+        statusBadge = '⏸️ Paused';
+        statusColor = '#f39c12';
+      } else if (strategy.status === 'completed') {
+        statusBadge = '✅ Completed';
+        statusColor = '#3498db';
+      } else if (strategy.status === 'stopped') {
+        statusBadge = '⏹️ Stopped';
+        statusColor = '#95a5a6';
+      }
+      
+      // Format dates
+      const createdDate = strategy.created_at ? new Date(strategy.created_at).toLocaleString() : 'N/A';
+      const lastExecution = strategy.progress?.lastExecutionTime ? new Date(strategy.progress.lastExecutionTime).toLocaleString() : 'Not executed yet';
+      const nextExecution = strategy.status === 'active' && strategy.progress?.nextExecutionTime ? 
+        new Date(strategy.progress.nextExecutionTime).toLocaleString() : 'N/A';
+      
+      // Get token name from token manager or Jupiter
+      let tokenDisplay = strategy.config.tokenAddress ? strategy.config.tokenAddress.substring(0, 8) + '...' : 'N/A';
+      try {
+        if (window.electron && strategy.config.tokenAddress) {
+          // Try Token Manager first
+          if (window.electron.token) {
+            const tokens = await window.electron.token.list();
+            if (tokens.success && tokens.tokens) {
+              const token = tokens.tokens.find(t => t.contract_address === strategy.config.tokenAddress);
+              if (token && token.name) {
+                tokenDisplay = `${token.name}${token.symbol ? ` (${token.symbol})` : ''}`;
+              }
+            }
+          }
+          
+          // If still showing address, try Jupiter
+          if (tokenDisplay.includes('...') && window.electron.jupiter) {
+            const tokenInfo = await window.electron.jupiter.getTokenInfo(strategy.config.tokenAddress);
+            if (tokenInfo && tokenInfo.name) {
+              tokenDisplay = `${tokenInfo.name}${tokenInfo.symbol ? ` (${tokenInfo.symbol})` : ''}`;
+            }
+          }
+        }
+      } catch (err) {
+        console.log('Could not load token name:', err);
+      }
+      
+      // Get wallet name/label
+      let walletDisplay = 'Main Wallet (default)';
+      try {
+        if (window.electron && window.electron.wallet && strategy.config.walletId) {
+          const wallets = await window.electron.wallet.list();
+          if (wallets.success && wallets.wallets) {
+            const wallet = wallets.wallets.find(w => 
+              w.id == strategy.config.walletId || w.publicKey === strategy.config.walletId
+            );
+            if (wallet) {
+              const balance = await window.electron.wallet.getBalance(wallet.publicKey);
+              walletDisplay = `${wallet.label || 'Wallet'} (${balance.toFixed(4)} SOL)`;
+            }
+          }
+        }
+      } catch (err) {
+        console.log('Could not load wallet info:', err);
+      }
+      
+      // Format interval time better
+      let intervalDisplay = 'N/A';
+      if (strategy.type === 'dca' && strategy.config.frequency) {
+        const freqMap = {
+          'hourly': 'Every Hour',
+          '2h': 'Every 2 Hours',
+          '4h': 'Every 4 Hours',
+          '6h': 'Every 6 Hours',
+          'daily': 'Every Day',
+          'custom': `Every ${strategy.config.customIntervalMinutes || 0} min`
+        };
+        intervalDisplay = freqMap[strategy.config.frequency] || strategy.config.frequency;
+      } else if (strategy.config.intervalMinutes) {
+        intervalDisplay = `Every ${strategy.config.intervalMinutes} min`;
+      }
+      
+      strategyCard.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+              <span style="font-size: 20px;">${typeIcon}</span>
+              <strong style="font-size: 16px;">${typeLabel} #${strategy.id}</strong>
+              <span style="background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${statusBadge}</span>
+            </div>
+            <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 3px;">
+              🪙 Token: <strong style="color: #fff;">${tokenDisplay}</strong>
+            </div>
+            <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 3px;">
+              💰 Wallet: <strong style="color: #fff;">${walletDisplay}</strong>
+            </div>
+            <div style="font-size: 11px; color: #95a5a6;">
+              📅 Created: ${createdDate}
+            </div>
+          </div>
+          <div style="display: flex; gap: 5px;">
+            ${strategy.status === 'active' ? `
+              <button class="btn btn-small" onclick="pauseStrategy(${strategy.id}, '${strategy.type}')" style="background: #f39c12; min-width: 80px;">⏸️ Pause</button>
+              <button class="btn btn-small" onclick="stopStrategy(${strategy.id}, '${strategy.type}')" style="background: #e74c3c; min-width: 80px;">⏹️ Stop</button>
+            ` : strategy.status === 'paused' ? `
+              <button class="btn btn-small" onclick="startStrategy(${strategy.id}, '${strategy.type}')" style="background: #27ae60; min-width: 80px;">▶️ Resume</button>
+              <button class="btn btn-small" onclick="stopStrategy(${strategy.id}, '${strategy.type}')" style="background: #e74c3c; min-width: 80px;">⏹️ Stop</button>
+            ` : strategy.status === 'stopped' ? `
+              <button class="btn btn-small" onclick="startStrategy(${strategy.id}, '${strategy.type}')" style="background: #27ae60; min-width: 80px;">▶️ Start</button>
+              <button class="btn btn-small" onclick="archiveStrategy(${strategy.id})" style="background: #3498db; min-width: 80px;">📦 Archive</button>
+            ` : strategy.status === 'completed' ? `
+              <button class="btn btn-small" onclick="archiveStrategy(${strategy.id})" style="background: #3498db; min-width: 80px;">📦 Archive</button>
+            ` : ''}
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px; margin-bottom: 8px;">
+          ${strategy.type === 'dca' ? `
+            <div><span style="color: #7f8c8d;">Direction:</span> <strong>${strategy.config.direction === 'buy' ? '📥 Buy' : '📤 Sell'}</strong></div>
+            <div><span style="color: #7f8c8d;">Total Amount:</span> <strong>${strategy.config.totalAmount} ${strategy.config.direction === 'buy' ? 'SOL' : 'tokens'}</strong></div>
+            <div><span style="color: #7f8c8d;">Orders:</span> <strong>${strategy.progress?.completed || 0} / ${strategy.config.numberOfOrders || strategy.config.numOrders || 0}</strong></div>
+            <div><span style="color: #7f8c8d;">Interval:</span> <strong>${intervalDisplay}</strong></div>
+          ` : strategy.type === 'ratio' ? `
+            <div><span style="color: #7f8c8d;">Pattern:</span> <strong>${strategy.config.buyCount || 3} buys : ${strategy.config.sellCount || 2} sells</strong></div>
+            <div><span style="color: #7f8c8d;">Base Amount:</span> <strong>${strategy.progress?.baseTokenAmount ? strategy.progress.baseTokenAmount.toFixed(0) : 'Not set'} tokens</strong></div>
+            <div><span style="color: #7f8c8d;">SOL Progress:</span> <strong>${(strategy.progress?.totalSolUsed || 0).toFixed(2)} / ${strategy.config.totalSolLimit || 0} SOL (${strategy.config.totalSolLimit ? ((strategy.progress?.totalSolUsed || 0) / strategy.config.totalSolLimit * 100).toFixed(0) : 0}%)</strong></div>
+            <div><span style="color: #7f8c8d;">Trades:</span> <strong>${strategy.progress?.totalTrades || 0} total (${strategy.progress?.totalBuyTrades || 0} buys, ${strategy.progress?.totalSellTrades || 0} sells)</strong></div>
+            <div><span style="color: #7f8c8d;">Current Cycle:</span> <strong>#${(strategy.progress?.currentCycle || 0) + 1}, Trade ${(strategy.progress?.tradesInCycle || 0) + 1}/${(strategy.config.buyCount || 0) + (strategy.config.sellCount || 0)}</strong></div>
+            <div><span style="color: #7f8c8d;">Interval:</span> <strong>${strategy.config.intervalMinutes || 0} min${strategy.config.randomizeTiming ? ' (±20%)' : ''}</strong></div>
+          ` : strategy.type === 'bundle' ? `
+            <div><span style="color: #7f8c8d;">Type:</span> <strong>${strategy.config.bundleType === 'instant' ? '⚡ Instant' : '⏱️ Delayed'}</strong></div>
+            <div><span style="color: #7f8c8d;">Pattern:</span> <strong>${strategy.config.buysPerBundle || 3} buys → 1 reconcile sell</strong></div>
+            <div><span style="color: #7f8c8d;">Buy Range:</span> <strong>${strategy.config.minBuyAmount || 0}-${strategy.config.maxBuyAmount || 0} SOL</strong></div>
+            <div><span style="color: #7f8c8d;">Progress:</span> <strong>${strategy.progress?.bundlesCompleted || 0} / ${strategy.config.totalBundles || 0} bundles (${strategy.config.totalBundles ? ((strategy.progress?.bundlesCompleted || 0) / strategy.config.totalBundles * 100).toFixed(0) : 0}%)</strong></div>
+            <div><span style="color: #7f8c8d;">Trades:</span> <strong>${strategy.progress?.totalTrades || 0} total (${strategy.progress?.totalBuys || 0} buys, ${strategy.progress?.totalSells || 0} sells)</strong></div>
+            <div><span style="color: #7f8c8d;">Interval:</span> <strong>${strategy.config.bundleInterval || 0} min${strategy.config.bundleType === 'delayed' ? `, ${strategy.config.delayBetweenTrades || 10}s delays` : ''}</strong></div>
+          ` : ''}
+        </div>
+        <div style="border-top: 1px solid #34495e; padding-top: 8px; font-size: 11px; color: #7f8c8d;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 5px;">
+            <div>⏱️ Last Execution: <strong>${lastExecution}</strong></div>
+            ${strategy.status === 'active' ? `<div>⏭️ Next Execution: <strong>${nextExecution}</strong></div>` : ''}
+          </div>
+        </div>
+      `;
+      strategiesList.appendChild(strategyCard);
+    });
+    
+    // Update strategy count
+    document.getElementById('active-strategies').textContent = strategies.filter(s => s.status === 'active').length;
+    
+    console.log(`✅ Loaded ${strategies.length} strateg(ies)`);
+    
+  } catch (error) {
+    console.error('Error loading strategies:', error);
+    strategiesList.innerHTML = `<div class="empty-state">❌ Error loading strategies: ${error.message}</div>`;
+  }
+}
+
+// Load archived strategies
+async function loadArchivedStrategies() {
+  console.log('Loading archived strategies...');
+  const archiveList = document.getElementById('archive-list');
+  
+  if (!archiveList) {
+    console.error('Archive list element not found');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    archiveList.innerHTML = '<div class="empty-state">Loading archived strategies...</div>';
+    
+    if (!window.electron || !window.electron.strategy) {
+      console.error('Electron strategy API not available');
+      archiveList.innerHTML = '<div class="empty-state">⚠️ Strategy API not available</div>';
+      return;
+    }
+    
+    // Get archived strategies
+    const response = await window.electron.strategy.getArchived();
+    
+    console.log('Archived strategies response:', response);
+    
+    if (!response || !response.success) {
+      archiveList.innerHTML = `<div class="empty-state">❌ Error: ${response?.error || 'Failed to load archived strategies'}</div>`;
+      return;
+    }
+    
+    const strategies = response.strategies || [];
+    
+    if (strategies.length === 0) {
+      archiveList.innerHTML = '<div class="empty-state">📦 No archived strategies yet. Archive strategies to preserve their data!</div>';
+      return;
+    }
+    
+    // Display archived strategies
+    archiveList.innerHTML = '';
+    strategies.forEach((strategy) => {
+      const strategyCard = document.createElement('div');
+      strategyCard.className = 'strategy-card';
+      strategyCard.style.opacity = '0.9';
+      strategyCard.style.border = '2px solid #7f8c8d';
+      
+      // Determine strategy type and icon
+      let typeLabel = 'Unknown';
+      let typeIcon = '📊';
+      if (strategy.type === 'dca') {
+        typeLabel = 'DCA';
+        typeIcon = '📈';
+      } else if (strategy.type === 'ratio') {
+        typeLabel = 'Ratio Trading';
+        typeIcon = '🎯';
+      } else if (strategy.type === 'bundle') {
+        typeLabel = 'Bundle';
+        typeIcon = '📦';
+      }
+      
+      // Format dates
+      const createdDate = strategy.created_at ? new Date(strategy.created_at).toLocaleString() : 'N/A';
+      const archivedDate = strategy.archived_at ? new Date(strategy.archived_at).toLocaleString() : 'N/A';
+      
+      strategyCard.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+              <span style="font-size: 20px;">${typeIcon}</span>
+              <strong style="font-size: 16px;">${typeLabel} #${strategy.id}</strong>
+              <span style="background: #7f8c8d; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">📦 ARCHIVED</span>
+              ${strategy.cloud_synced ? '<span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">☁️ SYNCED</span>' : ''}
+            </div>
+            <div style="font-size: 12px; color: #bdc3c7; margin-bottom: 8px;">
+              📅 Archived: <strong>${archivedDate}</strong>
+            </div>
+            ${strategy.archive_notes ? `
+              <div style="font-size: 12px; color: #e8e8e8; background: #34495e; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                📝 Notes: ${strategy.archive_notes}
+              </div>
+            ` : ''}
+            <div style="font-size: 11px; color: #95a5a6;">
+              📊 ${strategy.transaction_count || 0} transactions • ${(strategy.total_volume || 0).toFixed(4)} SOL volume
+            </div>
+          </div>
+          <div style="display: flex; gap: 5px;">
+            <button class="btn btn-small" onclick="restoreStrategy(${strategy.id})" style="background: #27ae60; min-width: 100px;">
+              ♻️ Restore
+            </button>
+            ${!strategy.cloud_synced ? `
+              <button class="btn btn-small" onclick="syncToCloud(${strategy.id})" style="background: #3498db; min-width: 100px;">
+                ☁️ Sync
+              </button>
+            ` : ''}
+            <button class="btn btn-small" onclick="deleteStrategy(${strategy.id})" style="background: #e74c3c; min-width: 100px;">
+              🗑️ Delete
+            </button>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #95a5a6;">
+          Originally created: ${createdDate}
+        </div>
+      `;
+      archiveList.appendChild(strategyCard);
+    });
+    
+    console.log(`✅ Loaded ${strategies.length} archived strateg(ies)`);
+    
+  } catch (error) {
+    console.error('Error loading archived strategies:', error);
+    archiveList.innerHTML = `<div class="empty-state">❌ Error loading archived strategies: ${error.message}</div>`;
+  }
+}
+
+// Sync strategy to cloud (placeholder for future implementation)
+async function syncToCloud(strategyId) {
+  // For now, just mark as synced locally
+  // In the future, this would actually upload to cloud service
+  if (!confirm(`Sync Strategy #${strategyId} to cloud?\n\n(Cloud sync feature coming soon!)`)) {
+    return;
+  }
+  
+  try {
+    const result = await window.electron.strategy.markSynced(strategyId);
+    if (result.success) {
+      alert('✅ Strategy marked as synced!\n\n(Full cloud sync coming in future update)');
+      loadArchivedStrategies(); // Refresh
+    } else {
+      alert(`Failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error syncing to cloud:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+// Strategy control functions
+async function startStrategy(strategyId, type) {
+  try {
+    console.log(`Starting ${type} strategy #${strategyId}`);
+    const result = await window.electron.strategy[type].start(strategyId);
+    if (result.success) {
+      console.log('✅ Strategy started');
+      loadStrategies(); // Refresh list
+    } else {
+      console.error('Failed to start strategy:', result.error);
+      alert(`Failed to start strategy: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error starting strategy:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+async function pauseStrategy(strategyId, type) {
+  try {
+    console.log(`Pausing ${type} strategy #${strategyId}`);
+    const result = await window.electron.strategy[type].pause(strategyId);
+    if (result.success) {
+      console.log('✅ Strategy paused');
+      loadStrategies(); // Refresh list
+    } else {
+      console.error('Failed to pause strategy:', result.error);
+      alert(`Failed to pause strategy: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error pausing strategy:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+async function stopStrategy(strategyId, type) {
+  if (!confirm(`Are you sure you want to stop strategy #${strategyId}? This cannot be undone.`)) {
+    return;
+  }
+  
+  try {
+    console.log(`Stopping ${type} strategy #${strategyId}`);
+    const result = await window.electron.strategy[type].stop(strategyId);
+    if (result.success) {
+      console.log('✅ Strategy stopped');
+      loadStrategies(); // Refresh list
+    } else {
+      console.error('Failed to stop strategy:', result.error);
+      alert(`Failed to stop strategy: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error stopping strategy:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+// Archive strategy (soft delete - keeps all data)
+let strategyToArchive = null;
+
+function archiveStrategy(strategyId) {
+  // Store the strategy ID
+  strategyToArchive = strategyId;
+  
+  // Clear previous notes
+  document.getElementById('archive-notes').value = '';
+  document.getElementById('archive-error').style.display = 'none';
+  
+  // Show the archive modal
+  showModal('archive-modal');
+}
+
+// Setup archive modal handlers (called on DOM load)
+document.addEventListener('DOMContentLoaded', () => {
+  // Archive confirm button
+  const archiveConfirmBtn = document.getElementById('archive-confirm-btn');
+  if (archiveConfirmBtn) {
+    archiveConfirmBtn.addEventListener('click', async () => {
+      if (strategyToArchive === null) return;
+      
+      const notes = document.getElementById('archive-notes').value.trim();
+      const errorEl = document.getElementById('archive-error');
+      
+      try {
+        archiveConfirmBtn.disabled = true;
+        archiveConfirmBtn.textContent = 'Archiving...';
+        errorEl.style.display = 'none';
+        
+        console.log(`Archiving strategy #${strategyToArchive}`);
+        const result = await window.electron.strategy.archive(strategyToArchive, notes || undefined);
+        
+        if (result.success) {
+          console.log('✅ Strategy archived');
+          hideModal('archive-modal');
+          
+          // Show success message
+          showSuccessMessage(`
+            <h3>✅ Strategy #${strategyToArchive} Archived!</h3>
+            <p>All data has been preserved and stored locally.</p>
+            <p style="color: #3498db;">View it in the <strong>Archive</strong> section.</p>
+            ${notes ? `<p style="color: #95a5a6; font-size: 13px; margin-top: 10px;">Notes: "${notes}"</p>` : ''}
+          `);
+          
+          strategyToArchive = null;
+          loadStrategies(); // Refresh list
+        } else {
+          errorEl.textContent = `❌ Failed to archive: ${result.error}`;
+          errorEl.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error archiving strategy:', error);
+        errorEl.textContent = `❌ Error: ${error.message}`;
+        errorEl.style.display = 'block';
+      } finally {
+        archiveConfirmBtn.disabled = false;
+        archiveConfirmBtn.textContent = '📦 Archive Strategy';
+      }
+    });
+  }
+  
+  // Archive cancel button
+  const archiveCancelBtn = document.getElementById('archive-cancel-btn');
+  if (archiveCancelBtn) {
+    archiveCancelBtn.addEventListener('click', () => {
+      hideModal('archive-modal');
+      strategyToArchive = null;
+    });
+  }
+});
+
+// Permanently delete strategy (use with extreme caution)
+async function deleteStrategy(strategyId) {
+  if (!confirm(
+    `⚠️ PERMANENTLY DELETE Strategy #${strategyId}?\n\n` +
+    `❌ This will DELETE ALL DATA:\n` +
+    `  • Strategy configuration\n` +
+    `  • All transaction history\n` +
+    `  • All activity logs\n` +
+    `  • Fee records\n\n` +
+    `💡 TIP: Use "Archive" instead to keep data!\n\n` +
+    `Are you ABSOLUTELY SURE?`
+  )) {
+    return;
+  }
+  
+  // Double confirmation
+  if (!confirm('This cannot be undone. Delete permanently?')) {
+    return;
+  }
+  
+  try {
+    console.log(`Permanently deleting strategy #${strategyId}`);
+    const result = await window.electron.strategy.delete(strategyId);
+    
+    if (result.success) {
+      console.log('✅ Strategy permanently deleted');
+      alert('Strategy permanently deleted.');
+      loadStrategies(); // Refresh list
+    } else {
+      alert(`Failed to delete strategy: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error deleting strategy:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+// Restore archived strategy
+async function restoreStrategy(strategyId) {
+  if (!confirm(`Restore Strategy #${strategyId} from archive?`)) {
+    return;
+  }
+  
+  try {
+    console.log(`Restoring strategy #${strategyId}`);
+    const result = await window.electron.strategy.restore(strategyId);
+    
+    if (result.success) {
+      console.log('✅ Strategy restored');
+      alert('✅ Strategy restored successfully!');
+      loadArchivedStrategies(); // Refresh archive list
+    } else {
+      alert(`Failed to restore strategy: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error restoring strategy:', error);
+    alert(`Error: ${error.message}`);
+  }
+}
+
+// ============================================================================
+// ACTIVITY LOG MANAGEMENT
+// ============================================================================
+
+async function loadActivityLogs() {
+  console.log('Loading activity logs...');
+  const activityList = document.getElementById('activity-log-list');
+  
+  if (!activityList) {
+    console.error('Activity log list element not found');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    activityList.innerHTML = '<div class="empty-state">Loading activity...</div>';
+    
+    if (!window.electron || !window.electron.activity) {
+      console.error('Electron activity API not available');
+      activityList.innerHTML = '<div class="empty-state">⚠️ Activity API not available</div>';
+      return;
+    }
+    
+    // Get filter
+    const categoryFilter = document.getElementById('activity-filter-category')?.value || '';
+    const params = categoryFilter ? { category: categoryFilter, limit: 100 } : { limit: 100 };
+    
+    // Get all activity logs
+    const response = await window.electron.activity.getAll(params);
+    
+    console.log('Activity logs response:', response);
+    
+    if (!response || !response.success) {
+      activityList.innerHTML = `<div class="empty-state">❌ Error: ${response?.error || 'Failed to load activity logs'}</div>`;
+      return;
+    }
+    
+    const logs = response.logs || [];
+    
+    if (logs.length === 0) {
+      activityList.innerHTML = '<div class="empty-state">No activity yet. Create and run strategies to see activity!</div>';
+      return;
+    }
+    
+    // Display activity logs
+    activityList.innerHTML = '';
+    logs.forEach((log) => {
+      const logItem = document.createElement('div');
+      logItem.className = 'activity-item';
+      
+      // Determine icon and color based on category and severity
+      let icon = '📝';
+      let iconColor = '#3498db';
+      
+      if (log.category === 'strategy') icon = '📊';
+      if (log.category === 'trade') icon = '💱';
+      if (log.category === 'wallet') icon = '💰';
+      if (log.category === 'system') icon = '⚙️';
+      
+      if (log.severity === 'success') iconColor = '#27ae60';
+      if (log.severity === 'warning') iconColor = '#f39c12';
+      if (log.severity === 'error') iconColor = '#e74c3c';
+      
+      // Format timestamp
+      const timestamp = new Date(log.timestamp).toLocaleString();
+      
+      // Parse metadata for transaction info
+      let transactionLink = '';
+      if (log.metadata) {
+        try {
+          const metadata = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+          if (metadata.signature) {
+            transactionLink = `
+              <div style="margin-top: 8px;">
+                <a href="https://solscan.io/tx/${metadata.signature}" target="_blank" 
+                   style="color: #3498db; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+                  🔗 View on Solscan: ${metadata.signature.substring(0, 16)}...
+                </a>
+                ${metadata.dex ? `<span style="margin-left: 10px; color: #95a5a6; font-size: 11px;">DEX: ${metadata.dex}</span>` : ''}
+              </div>
+            `;
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+      
+      logItem.innerHTML = `
+        <div style="display: flex; align-items: start; gap: 15px; padding: 15px; border-bottom: 1px solid #34495e;">
+          <div style="font-size: 24px; color: ${iconColor};">${icon}</div>
+          <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+              <strong style="font-size: 14px;">${log.title}</strong>
+              <span style="font-size: 11px; color: #95a5a6;">${timestamp}</span>
+            </div>
+            ${log.description ? `<div style="font-size: 12px; color: #bdc3c7; margin-bottom: 5px;">${log.description}</div>` : ''}
+            ${transactionLink}
+            <div style="display: flex; gap: 10px; font-size: 11px; color: #7f8c8d; margin-top: 8px;">
+              <span style="background: #34495e; padding: 2px 8px; border-radius: 3px;">${log.category.toUpperCase()}</span>
+              ${log.strategy_id ? `<span>Strategy #${log.strategy_id}</span>` : ''}
+              ${log.wallet_label ? `<span>Wallet: ${log.wallet_label}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+      activityList.appendChild(logItem);
+    });
+    
+    console.log(`✅ Loaded ${logs.length} activity log(s)`);
+    
+  } catch (error) {
+    console.error('Error loading activity logs:', error);
+    activityList.innerHTML = `<div class="empty-state">❌ Error loading activity logs: ${error.message}</div>`;
+  }
+}
+
+// Setup activity log page
+document.addEventListener('DOMContentLoaded', () => {
+  // Refresh button
+  const refreshActivityBtn = document.getElementById('refresh-activity-btn');
+  if (refreshActivityBtn) {
+    refreshActivityBtn.addEventListener('click', () => {
+      console.log('Refreshing activity logs...');
+      loadActivityLogs();
+    });
+  }
+  
+  // Category filter
+  const categoryFilter = document.getElementById('activity-filter-category');
+  if (categoryFilter) {
+    categoryFilter.addEventListener('change', () => {
+      console.log('Activity filter changed');
+      loadActivityLogs();
+    });
+  }
+  
+  // Listen for real-time activity updates
+  if (window.electron && window.electron.activity) {
+    window.electron.activity.onNewActivity((activity) => {
+      console.log('New activity received:', activity);
+      // Reload the activity log to show the new activity
+      if (document.getElementById('activity-page').classList.contains('active')) {
+        loadActivityLogs();
+      }
+    });
+  }
+});
+
+// Setup trades & volume page
+function setupTradesPage() {
+  const refreshBtn = document.getElementById('refresh-trades-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      console.log('Refreshing trades data...');
+      loadTradesData();
+    });
+  }
+}
+
+async function loadTradesData() {
+  console.log('Loading trades and volume data...');
+  
+  try {
+    if (!window.electron || !window.electron.transaction) {
+      console.error('Transaction API not available');
+      return;
+    }
+    
+    // Get all transactions
+    const result = await window.electron.transaction.getAll();
+    
+    if (!result.success || !result.transactions) {
+      console.error('Failed to load transactions');
+      return;
+    }
+    
+    const transactions = result.transactions;
+    const now = Date.now();
+    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    
+    // Calculate stats
+    const totalTrades = transactions.length;
+    const successfulTrades = transactions.filter(t => t.status === 'confirmed').length;
+    const successRate = totalTrades > 0 ? ((successfulTrades / totalTrades) * 100).toFixed(1) : 0;
+    
+    // Total volume (all time)
+    const totalVolume = transactions
+      .filter(t => t.status === 'confirmed')
+      .reduce((sum, t) => sum + (parseFloat(t.amount_sol) || 0), 0);
+    
+    // Today's data
+    const todayTrades = transactions.filter(t => t.timestamp >= oneDayAgo);
+    const todayVolume = todayTrades
+      .filter(t => t.status === 'confirmed')
+      .reduce((sum, t) => sum + (parseFloat(t.amount_sol) || 0), 0);
+    
+    const todayBuys = todayTrades.filter(t => t.direction === 'buy' && t.status === 'confirmed');
+    const todaySells = todayTrades.filter(t => t.direction === 'sell' && t.status === 'confirmed');
+    
+    const todayBuysVolume = todayBuys.reduce((sum, t) => sum + (parseFloat(t.amount_sol) || 0), 0);
+    const todaySellsVolume = todaySells.reduce((sum, t) => sum + (parseFloat(t.amount_sol) || 0), 0);
+    
+    const avgTradeSize = totalTrades > 0 ? (totalVolume / totalTrades).toFixed(4) : 0;
+    
+    // Update summary stats
+    document.getElementById('total-trades-count').textContent = totalTrades;
+    document.getElementById('total-volume-sol').textContent = `${totalVolume.toFixed(2)} SOL`;
+    document.getElementById('today-volume-sol').textContent = `${todayVolume.toFixed(2)} SOL`;
+    document.getElementById('success-rate').textContent = `${successRate}%`;
+    
+    // Update today's activity
+    document.getElementById('today-buys').textContent = todayBuys.length;
+    document.getElementById('today-sells').textContent = todaySells.length;
+    document.getElementById('today-buys-volume').textContent = `${todayBuysVolume.toFixed(3)} SOL`;
+    document.getElementById('today-sells-volume').textContent = `${todaySellsVolume.toFixed(3)} SOL`;
+    document.getElementById('avg-trade-size').textContent = avgTradeSize;
+    
+    // Get active strategies count
+    if (window.electron.strategy) {
+      const strategiesResult = await window.electron.strategy.getAll();
+      if (strategiesResult.success) {
+        const activeCount = strategiesResult.strategies.filter(s => s.status === 'active').length;
+        document.getElementById('active-strategies-count').textContent = activeCount;
+      }
+    }
+    
+    // Display recent trades (last 20)
+    const recentTradesList = document.getElementById('recent-trades-list');
+    if (recentTradesList) {
+      const recentTrades = transactions
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 20);
+      
+      if (recentTrades.length === 0) {
+        recentTradesList.innerHTML = '<div class="empty-state">No trades yet</div>';
+      } else {
+        recentTradesList.innerHTML = '';
+        recentTrades.forEach(trade => {
+          const tradeEl = document.createElement('div');
+          tradeEl.className = 'activity-item';
+          
+          const statusIcon = trade.status === 'confirmed' ? '✅' : 
+                            trade.status === 'failed' ? '❌' : '⏳';
+          const directionIcon = trade.direction === 'buy' ? '📥' : '📤';
+          const directionColor = trade.direction === 'buy' ? '#27ae60' : '#e74c3c';
+          
+          const date = new Date(trade.timestamp).toLocaleString();
+          
+          tradeEl.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 3px;">
+                  <span>${statusIcon}</span>
+                  <span style="color: ${directionColor}; font-weight: bold;">${directionIcon} ${trade.direction.toUpperCase()}</span>
+                  <span style="font-size: 13px; color: #fff;">${parseFloat(trade.amount_sol).toFixed(4)} SOL</span>
+                </div>
+                <div style="font-size: 11px; color: #7f8c8d;">
+                  ${date} • Strategy #${trade.strategy_id}
+                </div>
+                ${trade.transaction_id ? `
+                  <div style="font-size: 10px; color: #7f8c8d; margin-top: 2px;">
+                    <a href="https://solscan.io/tx/${trade.transaction_id}" target="_blank" style="color: #3498db;">
+                      ${trade.transaction_id.substring(0, 16)}...
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+          recentTradesList.appendChild(tradeEl);
+        });
+      }
+    }
+    
+    // Calculate volume by token (last 7 days)
+    const volumeByToken = {};
+    transactions
+      .filter(t => t.timestamp >= sevenDaysAgo && t.status === 'confirmed')
+      .forEach(t => {
+        const tokenAddr = t.token_mint || 'Unknown';
+        if (!volumeByToken[tokenAddr]) {
+          volumeByToken[tokenAddr] = { buys: 0, sells: 0, total: 0, trades: 0 };
+        }
+        const amount = parseFloat(t.amount_sol) || 0;
+        volumeByToken[tokenAddr].total += amount;
+        volumeByToken[tokenAddr].trades++;
+        if (t.direction === 'buy') {
+          volumeByToken[tokenAddr].buys += amount;
+        } else {
+          volumeByToken[tokenAddr].sells += amount;
+        }
+      });
+    
+    // Display volume by token
+    const volumeByTokenEl = document.getElementById('volume-by-token');
+    if (volumeByTokenEl) {
+      const tokens = Object.entries(volumeByToken).sort((a, b) => b[1].total - a[1].total);
+      
+      if (tokens.length === 0) {
+        volumeByTokenEl.innerHTML = '<div class="empty-state">No trades in last 7 days</div>';
+      } else {
+        // Fetch token names for each address
+        volumeByTokenEl.innerHTML = '<div class="empty-state">Loading token details...</div>';
+        
+        const tokenElements = [];
+        for (const [addr, data] of tokens) {
+          let tokenDisplay = addr.substring(0, 12) + '...';
+          let tokenSymbol = '';
+          
+          // Try to get token name from Token Manager
+          try {
+            if (window.electron && window.electron.token) {
+              const tokensResult = await window.electron.token.list();
+              if (tokensResult.success && tokensResult.tokens) {
+                const token = tokensResult.tokens.find(t => t.contract_address === addr);
+                if (token) {
+                  tokenDisplay = token.name;
+                  tokenSymbol = token.symbol ? ` (${token.symbol})` : '';
+                }
+              }
+            }
+          } catch (err) {
+            console.log('Could not fetch token name for:', addr);
+          }
+          
+          // Try to get token info from Jupiter
+          if (tokenDisplay.includes('...')) {
+            try {
+              if (window.electron && window.electron.jupiter) {
+                const tokenInfo = await window.electron.jupiter.getTokenInfo(addr);
+                if (tokenInfo && tokenInfo.name) {
+                  tokenDisplay = tokenInfo.name;
+                  tokenSymbol = tokenInfo.symbol ? ` (${tokenInfo.symbol})` : '';
+                }
+              }
+            } catch (err) {
+              console.log('Could not fetch Jupiter token info for:', addr);
+            }
+          }
+          
+          tokenElements.push(`
+            <div style="border-bottom: 1px solid #34495e; padding: 12px 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-size: 13px; color: #fff;">
+                  🪙 <strong>${tokenDisplay}${tokenSymbol}</strong>
+                </div>
+                <div style="font-size: 14px; font-weight: bold;">
+                  ${data.total.toFixed(3)} SOL
+                </div>
+              </div>
+              <div style="font-size: 10px; color: #7f8c8d; margin-bottom: 5px;">
+                ${addr}
+              </div>
+              <div style="display: flex; gap: 20px; font-size: 11px; color: #7f8c8d;">
+                <span>📈 Buys: ${data.buys.toFixed(3)} SOL</span>
+                <span>📉 Sells: ${data.sells.toFixed(3)} SOL</span>
+                <span>📊 Trades: ${data.trades}</span>
+              </div>
+            </div>
+          `);
+        }
+        
+        volumeByTokenEl.innerHTML = tokenElements.join('');
+      }
+    }
+    
+    console.log('✅ Trades data loaded');
+    
+  } catch (error) {
+    console.error('Error loading trades data:', error);
+  }
+}
+
 // Export functions for inline handlers
 window.showPage = showPage;
+window.copyToClipboard = copyToClipboard;
+window.startStrategy = startStrategy;
+window.pauseStrategy = pauseStrategy;
+window.stopStrategy = stopStrategy;
+window.archiveStrategy = archiveStrategy;
+window.restoreStrategy = restoreStrategy;
+window.syncToCloud = syncToCloud;
+window.deleteStrategy = deleteStrategy;
+window.deleteToken = deleteToken;
+window.selectJupiterToken = selectJupiterToken;

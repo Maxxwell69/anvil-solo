@@ -1,7 +1,17 @@
 import { Keypair, Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import bs58 from 'bs58';
 import { encryptPrivateKey, decryptPrivateKey } from './encryption';
 import { getDatabase } from '../database/schema';
+
+export interface TokenBalance {
+  mint: string;
+  balance: number;
+  decimals: number;
+  uiAmount: number;
+  name?: string;
+  symbol?: string;
+}
 
 export interface WalletInfo {
   id: number;
@@ -9,6 +19,7 @@ export interface WalletInfo {
   label?: string;
   isMain: boolean;
   balance?: number;
+  tokens?: TokenBalance[];
 }
 
 export class WalletManager {
@@ -204,6 +215,54 @@ export class WalletManager {
   }
 
   /**
+   * Get all token accounts for a wallet
+   */
+  async getAllTokenBalances(walletPubkey: string): Promise<TokenBalance[]> {
+    try {
+      const publicKey = new PublicKey(walletPubkey);
+      
+      // Get all token accounts (both TOKEN and TOKEN_2022 programs)
+      const [tokenAccounts, token2022Accounts] = await Promise.all([
+        this.connection.getParsedTokenAccountsByOwner(publicKey, { programId: TOKEN_PROGRAM_ID }),
+        this.connection.getParsedTokenAccountsByOwner(publicKey, { programId: TOKEN_2022_PROGRAM_ID })
+      ]);
+      
+      const allAccounts = [...tokenAccounts.value, ...token2022Accounts.value];
+      
+      // Get saved tokens from database for name/symbol lookup
+      const db = getDatabase();
+      const savedTokens = db.prepare('SELECT contract_address, name, symbol FROM tokens').all() as any[];
+      const tokenMap = new Map(savedTokens.map(t => [t.contract_address, { name: t.name, symbol: t.symbol }]));
+      
+      const tokenBalances: TokenBalance[] = [];
+      
+      for (const account of allAccounts) {
+        const parsed = account.account.data.parsed.info;
+        const mint = parsed.mint;
+        const tokenAmount = parsed.tokenAmount;
+        
+        // Only include tokens with non-zero balance
+        if (tokenAmount.uiAmount > 0) {
+          const savedToken = tokenMap.get(mint);
+          tokenBalances.push({
+            mint,
+            balance: tokenAmount.amount,
+            decimals: tokenAmount.decimals,
+            uiAmount: tokenAmount.uiAmount,
+            name: savedToken?.name,
+            symbol: savedToken?.symbol
+          });
+        }
+      }
+      
+      return tokenBalances;
+    } catch (error: any) {
+      console.error('Error fetching token balances:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get all wallets from database
    */
   getAllWallets(): WalletInfo[] {
@@ -230,6 +289,51 @@ export class WalletManager {
       throw new Error('Wallet not unlocked. Please unlock the wallet first.');
     }
     return this.mainKeypair;
+  }
+
+  /**
+   * Get a keypair by wallet ID or public key
+   * @param walletIdOrPublicKey - Wallet ID (number/string), public key string, or undefined for main wallet
+   * @returns Keypair for the specified wallet
+   */
+  getKeypairByWalletId(walletIdOrPublicKey?: string | number): Keypair {
+    // If no wallet specified, return main wallet
+    if (!walletIdOrPublicKey) {
+      return this.getMainKeypair();
+    }
+
+    // Get wallet info from database
+    const db = getDatabase();
+    let walletInfo: any;
+
+    if (typeof walletIdOrPublicKey === 'number' || !isNaN(Number(walletIdOrPublicKey))) {
+      // Query by ID
+      walletInfo = db.prepare('SELECT public_key, is_main FROM wallets WHERE id = ?')
+        .get(Number(walletIdOrPublicKey));
+    } else {
+      // Query by public key
+      walletInfo = db.prepare('SELECT public_key, is_main FROM wallets WHERE public_key = ?')
+        .get(walletIdOrPublicKey);
+    }
+
+    if (!walletInfo) {
+      throw new Error(`Wallet not found: ${walletIdOrPublicKey}`);
+    }
+
+    // If it's the main wallet, return the main keypair
+    if (walletInfo.is_main) {
+      return this.getMainKeypair();
+    }
+
+    // Check if we have this derived wallet in memory
+    const publicKey = walletInfo.public_key;
+    const keypair = this.derivedKeypairs.get(publicKey);
+
+    if (!keypair) {
+      throw new Error(`Wallet ${publicKey} is not unlocked. Please unlock your wallets first.`);
+    }
+
+    return keypair;
   }
 
   /**

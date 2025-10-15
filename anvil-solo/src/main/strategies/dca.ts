@@ -7,6 +7,7 @@ const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export interface DCAConfig {
   tokenAddress: string;
+  walletId?: string; // Wallet ID or public key to use for this strategy
   direction: 'buy' | 'sell';
   totalAmount: number;
   numberOfOrders: number;
@@ -78,9 +79,14 @@ export class DCAStrategy {
     console.log(`   Schedule: ${cronExpression}`);
 
     this.cronJob = cron.schedule(cronExpression, async () => {
+      console.log(`⏰ Cron job triggered for DCA strategy #${this.strategyId}`);
       await this.executeDCAOrder(amountPerOrder);
     });
 
+    console.log(`✅ Cron job scheduled with expression: ${cronExpression}`);
+    console.log(`⏳ Next execution will occur at the scheduled time`);
+    console.log(`💡 TIP: For immediate execution, use custom interval with 1 minute`);
+    
     await this.updateStrategyStatus('active');
   }
 
@@ -134,9 +140,23 @@ export class DCAStrategy {
 
       // Execute swap
       console.log(`   Executing swap...`);
+      console.log(`   Using wallet ID: ${this.config.walletId || 'DEFAULT (MAIN)'}`);
+      
+      const keypair = this.wallet.getKeypairByWalletId(this.config.walletId);
+      const walletAddress = keypair.publicKey.toBase58();
+      console.log(`   Wallet public key: ${walletAddress}`);
+      
+      // Check balance before swapping
+      const balanceSOL = await this.wallet.getBalance(walletAddress);
+      console.log(`   Wallet balance: ${balanceSOL.toFixed(4)} SOL`);
+      
+      if (balanceSOL < 0.02) {
+        throw new Error(`Insufficient balance in selected wallet (${walletAddress.substring(0,8)}...). Has ${balanceSOL.toFixed(4)} SOL, need at least 0.02 SOL`);
+      }
+      
       const result = await this.jupiter.executeSwap({
         quote,
-        userKeypair: this.wallet.getMainKeypair(),
+        userKeypair: keypair,
         priorityFeeLamports: this.config.priorityFeeLamports,
       });
 
@@ -150,8 +170,14 @@ export class DCAStrategy {
 
       await this.updateProgress();
 
-      console.log(`   ✅ DCA ${this.config.direction}: ${result.signature}`);
-      console.log(`   📈 Progress: ${this.progress.completed}/${this.config.numberOfOrders}`);
+      console.log(`\n${'='.repeat(70)}`);
+      console.log(`✅ DCA TRADE EXECUTED SUCCESSFULLY!`);
+      console.log(`${'='.repeat(70)}`);
+      console.log(`Strategy #${this.strategyId} - ${this.config.direction.toUpperCase()} Order ${this.progress.completed}/${this.config.numberOfOrders}`);
+      console.log(`Amount: ${amount} ${this.config.direction === 'buy' ? 'SOL' : 'tokens'}`);
+      console.log(`Transaction: ${result.signature}`);
+      console.log(`View on Solscan: https://solscan.io/tx/${result.signature}`);
+      console.log(`${'='.repeat(70)}\n`);
     } catch (error: any) {
       console.error(`   ❌ DCA order failed:`, error.message);
       
@@ -220,12 +246,16 @@ export class DCAStrategy {
     error?: string
   ): Promise<void> {
     const db = getDatabase();
+    const timestamp = Date.now();
     
     if (result && quote) {
       const inputMint = this.config.direction === 'buy' ? SOL_MINT : this.config.tokenAddress;
       const outputMint = this.config.direction === 'buy' ? this.config.tokenAddress : SOL_MINT;
+      const inputAmount = result.inputAmount / Math.pow(10, 9);
+      const outputAmount = result.outputAmount / Math.pow(10, 9);
       
-      db.prepare(`
+      // Insert transaction record
+      const txResult = db.prepare(`
         INSERT INTO transactions (
           strategy_id, signature, type, input_token, output_token,
           input_amount, output_amount, dex_used, price, status, timestamp
@@ -236,12 +266,32 @@ export class DCAStrategy {
         this.config.direction,
         inputMint,
         outputMint,
-        result.inputAmount / Math.pow(10, 9),
-        result.outputAmount / Math.pow(10, 9),
+        inputAmount,
+        outputAmount,
         result.dexUsed,
         result.priceImpact,
         status,
-        Date.now()
+        timestamp
+      );
+      
+      // Log to activity log
+      db.prepare(`
+        INSERT INTO activity_logs (event_type, category, title, description, strategy_id, transaction_id, metadata, severity, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'trade_executed',
+        'trade',
+        `${this.config.direction === 'buy' ? '📥 Buy' : '📤 Sell'} Trade Executed`,
+        `${inputAmount.toFixed(4)} ${this.config.direction === 'buy' ? 'SOL' : 'tokens'} → ${outputAmount.toFixed(4)} ${this.config.direction === 'buy' ? 'tokens' : 'SOL'}`,
+        this.strategyId,
+        txResult.lastInsertRowid,
+        JSON.stringify({
+          signature: result.signature,
+          dex: result.dexUsed,
+          solscanUrl: `https://solscan.io/tx/${result.signature}`
+        }),
+        'success',
+        timestamp
       );
     } else {
       // Log failed attempt
@@ -259,7 +309,22 @@ export class DCAStrategy {
         0,
         status,
         error || '',
-        Date.now()
+        timestamp
+      );
+      
+      // Log to activity log
+      db.prepare(`
+        INSERT INTO activity_logs (event_type, category, title, description, strategy_id, metadata, severity, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'trade_failed',
+        'trade',
+        `❌ Trade Failed`,
+        error || 'Unknown error',
+        this.strategyId,
+        JSON.stringify({ error: error || 'Unknown error' }),
+        'error',
+        timestamp
       );
     }
   }

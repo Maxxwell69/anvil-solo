@@ -106,6 +106,33 @@
     </div>
   </div>
 
+  <!-- Archive Strategy Modal -->
+  <div id="archive-modal" class="modal">
+    <div class="modal-content">
+      <h2>📦 Archive Strategy</h2>
+      <div style="background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <p style="margin: 0 0 10px 0; color: #bdc3c7;">Archiving this strategy will:</p>
+        <ul style="margin: 0; padding-left: 20px; color: #bdc3c7; font-size: 14px;">
+          <li>✅ Preserve all transaction data</li>
+          <li>✅ Keep activity logs</li>
+          <li>✅ Store locally on your computer</li>
+          <li>☁️ Allow cloud sync later</li>
+          <li>♻️ Let you restore it anytime</li>
+        </ul>
+      </div>
+      <div class="form-group">
+        <label>Optional Notes</label>
+        <textarea id="archive-notes" placeholder="e.g., 'Completed successfully', 'Testing phase done', etc." rows="3"></textarea>
+        <small>Add notes about why you're archiving this strategy (optional)</small>
+      </div>
+      <div class="form-actions">
+        <button id="archive-confirm-btn" class="btn btn-primary">📦 Archive Strategy</button>
+        <button id="archive-cancel-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+      <div id="archive-error" class="error-message"></div>
+    </div>
+  </div>
+
   <!-- Main App (shown after unlock) -->
   <div id="main-app" class="screen">
     <!-- Sidebar -->
@@ -129,8 +156,14 @@
         <a href="#" class="nav-item" data-page="bundle">
           <span>📦</span> Bundle Trading
         </a>
+        <a href="#" class="nav-item" data-page="trades">
+          <span>📊</span> Trades & Volume
+        </a>
         <a href="#" class="nav-item" data-page="activity">
           <span>📋</span> Activity Log
+        </a>
+        <a href="#" class="nav-item" data-page="archive">
+          <span>📦</span> Archive
         </a>
         <a href="#" class="nav-item" data-page="wallet">
           <span>💰</span> Wallet
@@ -201,8 +234,11 @@
           </div>
           <div class="form-group">
             <label>Contract Address (CA)</label>
-            <input type="text" id="token-address" placeholder="Enter Solana token mint address" />
-            <small>Token will be validated if Jupiter API is accessible (optional)</small>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="token-address" placeholder="Enter Solana token mint address" style="flex: 1;" />
+              <button id="fetch-token-info-btn" class="btn btn-secondary" style="min-width: 150px;">🔍 Fetch Token Info</button>
+            </div>
+            <small>Paste token address and click "Fetch Token Info" to auto-fill details from Jupiter</small>
           </div>
           <div class="form-group">
             <label>Notes (Optional)</label>
@@ -210,14 +246,34 @@
           </div>
           <div class="form-actions">
             <button id="add-token-btn" class="btn btn-primary">Add Token</button>
+            <button id="clear-token-form-btn" class="btn btn-secondary">Clear Form</button>
           </div>
           <div id="token-status" class="status-message"></div>
         </div>
 
         <div class="section">
-          <h2>My Tokens</h2>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0;">My Tokens</h2>
+            <button id="browse-jupiter-tokens-btn" class="btn btn-small" style="background: #9b59b6;">
+              🌐 Browse Jupiter Tokens
+            </button>
+          </div>
           <div id="tokens-list" class="tokens-list">
             <div class="empty-state">No tokens added yet. Add your first token above!</div>
+          </div>
+        </div>
+        
+        <div class="section" id="jupiter-tokens-browser" style="display: none;">
+          <h2>Jupiter Verified Tokens</h2>
+          <p class="page-description">Browse and add tokens from Jupiter's verified list</p>
+          <div class="form-group">
+            <input type="text" id="jupiter-token-search" placeholder="Search tokens..." style="margin-bottom: 10px;" />
+          </div>
+          <div id="jupiter-tokens-list" style="max-height: 400px; overflow-y: auto; background: #2c3e50; padding: 10px; border-radius: 8px;">
+            <div class="empty-state">Loading Jupiter tokens...</div>
+          </div>
+          <div style="margin-top: 10px;">
+            <button id="close-jupiter-browser-btn" class="btn btn-secondary">Close</button>
           </div>
         </div>
       </div>
@@ -241,6 +297,14 @@
           </div>
 
           <div class="form-group">
+            <label>💰 Select Wallet</label>
+            <select id="dca-wallet-select">
+              <option value="">-- Select wallet --</option>
+            </select>
+            <small>Choose which wallet will execute this strategy</small>
+          </div>
+
+          <div class="form-group">
             <label>Direction</label>
             <select id="dca-direction">
               <option value="buy">Buy (SOL → Token)</option>
@@ -250,14 +314,14 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Total Amount</label>
-              <input type="number" id="dca-amount" placeholder="10" step="0.01" />
-              <small>Total SOL or tokens to trade</small>
+              <label id="dca-amount-label">Total Amount (SOL)</label>
+              <input type="number" id="dca-amount" placeholder="10" step="0.01" value="" />
+              <small id="dca-amount-hint">Total SOL to spend buying tokens</small>
             </div>
 
             <div class="form-group">
               <label>Number of Orders</label>
-              <input type="number" id="dca-orders" placeholder="24" min="1" />
+              <input type="number" id="dca-orders" placeholder="24" value="" />
               <small>Split into N orders</small>
             </div>
           </div>
@@ -276,7 +340,7 @@
 
           <div class="form-group" id="dca-custom-interval" style="display: none;">
             <label>Custom Interval (minutes)</label>
-            <input type="number" id="dca-interval-minutes" placeholder="30" min="1" />
+            <input type="number" id="dca-interval-minutes" placeholder="30" value="" />
           </div>
 
           <div class="form-row">
@@ -286,8 +350,13 @@
             </div>
 
             <div class="form-group">
-              <label>Priority Fee (lamports)</label>
-              <input type="number" id="dca-priority-fee" placeholder="100000" value="100000" />
+              <label>Priority Fee</label>
+              <select id="dca-priority-fee">
+                <option value="10000">Low (10,000 lamports / 0.00001 SOL / ~$0.002)</option>
+                <option value="100000" selected>Medium (100,000 lamports / 0.0001 SOL / ~$0.02)</option>
+                <option value="500000">High (500,000 lamports / 0.0005 SOL / ~$0.10)</option>
+              </select>
+              <small>Higher fees = faster confirmation during network congestion</small>
             </div>
           </div>
 
@@ -302,10 +371,21 @@
 
       <!-- Ratio Trading Page -->
       <div id="ratio-page" class="page">
-        <h1>Ratio Trading</h1>
-        <p class="page-description">Create trading volume with specific buy/sell ratios while maintaining position.</p>
+        <h1>🎯 Ratio Trading</h1>
+        <p class="page-description">Simple buy/sell ratio pattern - creates volume while cycling position.</p>
 
         <div class="form-container">
+          <!-- Info Box -->
+          <div style="background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #3498db;">📖 How It Works:</h3>
+            <div style="font-size: 13px; color: #bdc3c7; line-height: 1.6;">
+              <p><strong>1.</strong> First buy sets the token amount (e.g., 0.1 SOL → 100,000 tokens)</p>
+              <p><strong>2.</strong> All future trades use that same token amount (100,000)</p>
+              <p><strong>3.</strong> Pattern: 3 buys → 2 sells → repeat (maintains position)</p>
+              <p><strong>4.</strong> Continues until total SOL limit reached</p>
+            </div>
+          </div>
+
           <div class="form-group">
             <label>Select Token (Optional)</label>
             <select id="ratio-token-select">
@@ -315,51 +395,80 @@
           <div class="form-group">
             <label>Or Enter Token Address</label>
             <input type="text" id="ratio-token" placeholder="Enter Solana token mint address" />
+            <small>Example: DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 (BONK)</small>
+          </div>
+
+          <div class="form-group">
+            <label>💰 Select Wallet</label>
+            <select id="ratio-wallet-select">
+              <option value="">-- Select wallet --</option>
+            </select>
+            <small>Choose which wallet will execute this strategy</small>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>Daily Volume (SOL)</label>
-              <input type="number" id="ratio-volume" placeholder="50" step="1" />
-              <small>Target daily volume</small>
+              <label>Number of Buys</label>
+              <input type="number" id="ratio-buy-count" placeholder="3" min="1" value="3" />
+              <small>How many buys per cycle</small>
             </div>
 
             <div class="form-group">
-              <label>Trades Per Hour</label>
-              <input type="number" id="ratio-trades-per-hour" placeholder="10" min="1" />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Buy Ratio (%)</label>
-              <input type="number" id="ratio-buy" placeholder="60" min="0" max="100" value="60" />
-            </div>
-
-            <div class="form-group">
-              <label>Sell Ratio (%)</label>
-              <input type="number" id="ratio-sell" placeholder="40" min="0" max="100" value="40" />
+              <label>Number of Sells</label>
+              <input type="number" id="ratio-sell-count" placeholder="2" min="1" value="2" />
+              <small>How many sells per cycle</small>
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>Target Token Balance</label>
-              <input type="number" id="ratio-target-balance" placeholder="1000000" />
-              <small>Balance to maintain</small>
+              <label>Initial SOL Per Trade</label>
+              <input type="number" id="ratio-initial-sol" placeholder="0.1" step="0.01" value="0.1" />
+              <small>SOL amount for first buy (sets token amount)</small>
             </div>
 
             <div class="form-group">
-              <label>Rebalance Threshold (%)</label>
-              <input type="number" id="ratio-rebalance" placeholder="10" value="10" />
-              <small>±% triggers rebalance</small>
+              <label>Total SOL Limit</label>
+              <input type="number" id="ratio-total-sol" placeholder="10" step="0.1" value="10" />
+              <small>Stop when total SOL used reaches this</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Interval Between Trades (minutes)</label>
+            <input type="number" id="ratio-interval" placeholder="5" min="1" value="5" />
+            <small>Minutes to wait between each trade</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Slippage (%)</label>
+              <input type="number" id="ratio-slippage" placeholder="1" step="0.1" value="1" />
+              <small>Max acceptable slippage</small>
+            </div>
+
+            <div class="form-group">
+              <label>Priority Fee</label>
+              <select id="ratio-priority-fee">
+                <option value="10000">Low (10,000 lamports / 0.00001 SOL / ~$0.002)</option>
+                <option value="100000" selected>Medium (100,000 lamports / 0.0001 SOL / ~$0.02)</option>
+                <option value="500000">High (500,000 lamports / 0.0005 SOL / ~$0.10)</option>
+              </select>
+              <small>Higher fees = faster confirmation</small>
             </div>
           </div>
 
           <div class="form-group">
             <label class="checkbox-label">
               <input type="checkbox" id="ratio-randomize" checked />
-              Randomize timing and amounts (looks organic)
+              Randomize timing (±20% to look organic)
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ratio-multi-wallet" checked />
+              Use multiple wallets (rotate through derived wallets)
             </label>
           </div>
 
@@ -374,10 +483,21 @@
 
       <!-- Bundle Trading Page -->
       <div id="bundle-page" class="page">
-        <h1>Bundle Trading</h1>
-        <p class="page-description">Execute multiple rapid trades for volume generation.</p>
+        <h1>📦 Bundle Reconcile Trading</h1>
+        <p class="page-description">Execute bundles of trades that reconcile - buys balanced by sells for neutral position.</p>
 
         <div class="form-container">
+          <!-- Info Box -->
+          <div style="background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #3498db;">📖 How It Works:</h3>
+            <div style="font-size: 13px; color: #bdc3c7; line-height: 1.6;">
+              <p><strong>Instant Bundle:</strong> Multiple buys → 1 reconciling sell (all within seconds)</p>
+              <p><strong>Delayed Bundle:</strong> Same pattern but with delays between trades (looks organic)</p>
+              <p><strong>Example:</strong> Buy 0.05 + Buy 0.10 → Sell 150k tokens ≈ 0.15 SOL back</p>
+              <p><strong>Result:</strong> Volume created, position stays neutral ⚖️</p>
+            </div>
+          </div>
+
           <div class="form-group">
             <label>Select Token (Optional)</label>
             <select id="bundle-token-select">
@@ -387,29 +507,87 @@
           <div class="form-group">
             <label>Or Enter Token Address</label>
             <input type="text" id="bundle-token" placeholder="Enter Solana token mint address" />
+            <small>Example: DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 (BONK)</small>
+          </div>
+
+          <div class="form-group">
+            <label>💰 Select Wallet</label>
+            <select id="bundle-wallet-select">
+              <option value="">-- Select wallet --</option>
+            </select>
+            <small>Choose which wallet will execute this strategy</small>
+          </div>
+
+          <div class="form-group">
+            <label>Bundle Type</label>
+            <div style="display: flex; gap: 20px; padding: 10px; background: #2c3e50; border-radius: 4px;">
+              <label class="checkbox-label" style="margin: 0;">
+                <input type="radio" name="bundle-type" id="bundle-type-instant" value="instant" checked />
+                ⚡ Instant (all trades at once)
+              </label>
+              <label class="checkbox-label" style="margin: 0;">
+                <input type="radio" name="bundle-type" id="bundle-type-delayed" value="delayed" />
+                ⏱️ Delayed (trades with time spacing)
+              </label>
+            </div>
+            <small>Instant = maximum speed, Delayed = more organic appearance</small>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>Trades Per Bundle</label>
-              <input type="number" id="bundle-trades" placeholder="10" min="1" max="20" value="10" />
+              <label>Buys Per Bundle</label>
+              <input type="number" id="bundle-buys-count" placeholder="3" min="2" max="5" value="3" />
+              <small>Number of buys before reconcile (2-5)</small>
             </div>
 
             <div class="form-group">
-              <label>Minutes Between Bundles</label>
-              <input type="number" id="bundle-interval" placeholder="30" min="1" value="30" />
+              <label>Total Bundles</label>
+              <input type="number" id="bundle-total-count" placeholder="20" min="1" value="20" />
+              <small>How many bundles to execute</small>
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label>Min Trade Size (SOL)</label>
-              <input type="number" id="bundle-min-size" placeholder="0.1" step="0.01" value="0.1" />
+              <label>Min Buy Amount (SOL)</label>
+              <input type="number" id="bundle-min-buy" placeholder="0.05" step="0.01" value="0.05" />
+              <small>Minimum SOL per buy</small>
             </div>
 
             <div class="form-group">
-              <label>Max Trade Size (SOL)</label>
-              <input type="number" id="bundle-max-size" placeholder="1.0" step="0.01" value="1.0" />
+              <label>Max Buy Amount (SOL)</label>
+              <input type="number" id="bundle-max-buy" placeholder="0.15" step="0.01" value="0.15" />
+              <small>Maximum SOL per buy</small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Bundle Interval (minutes)</label>
+            <input type="number" id="bundle-interval" placeholder="30" min="1" value="30" />
+            <small>Minutes to wait between bundles</small>
+          </div>
+
+          <div class="form-group" id="bundle-delay-field" style="display: none;">
+            <label>⏱️ Delay Between Trades (seconds)</label>
+            <input type="number" id="bundle-trade-delay" placeholder="10" min="1" max="60" value="10" />
+            <small>For delayed bundles: seconds between each trade</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Slippage (%)</label>
+              <input type="number" id="bundle-slippage" placeholder="1" step="0.1" value="1" />
+              <small>Max acceptable slippage</small>
+            </div>
+
+            <div class="form-group">
+              <label>Priority Fee</label>
+              <select id="bundle-priority-fee">
+                <option value="10000">Low (10,000 lamports / 0.00001 SOL / ~$0.002)</option>
+                <option value="100000" selected>Medium (100,000 lamports / 0.0001 SOL / ~$0.02)</option>
+                <option value="500000">High (500,000 lamports / 0.0005 SOL / ~$0.10)</option>
+              </select>
+              <small>Higher fees = faster confirmation</small>
             </div>
           </div>
 
@@ -429,11 +607,134 @@
         </div>
       </div>
 
+      <!-- Trades & Volume Page -->
+      <div id="trades-page" class="page">
+        <h1>📊 Trades & Volume Statistics</h1>
+        <p class="page-description">Track your trading activity, volume generation, and performance metrics</p>
+
+        <!-- Summary Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Trades</div>
+            <div class="stat-value" id="total-trades-count">0</div>
+            <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">All time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Volume</div>
+            <div class="stat-value" id="total-volume-sol">0 SOL</div>
+            <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">All time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Today's Volume</div>
+            <div class="stat-value" id="today-volume-sol">0 SOL</div>
+            <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">Last 24 hours</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Success Rate</div>
+            <div class="stat-value" id="success-rate">0%</div>
+            <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">Confirmed trades</div>
+          </div>
+        </div>
+
+        <!-- Today's Activity -->
+        <div class="section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0;">Today's Trading Activity</h2>
+            <button id="refresh-trades-btn" class="btn btn-small" style="background: #3498db;">
+              🔄 Refresh
+            </button>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="background: #2c3e50; padding: 15px; border-radius: 8px;">
+              <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">Buys Today</div>
+              <div style="font-size: 20px; font-weight: bold;" id="today-buys">0</div>
+              <div style="font-size: 11px; color: #27ae60;" id="today-buys-volume">0 SOL</div>
+            </div>
+            <div style="background: #2c3e50; padding: 15px; border-radius: 8px;">
+              <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">Sells Today</div>
+              <div style="font-size: 20px; font-weight: bold;" id="today-sells">0</div>
+              <div style="font-size: 11px; color: #e74c3c;" id="today-sells-volume">0 SOL</div>
+            </div>
+            <div style="background: #2c3e50; padding: 15px; border-radius: 8px;">
+              <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">Avg Trade Size</div>
+              <div style="font-size: 20px; font-weight: bold;" id="avg-trade-size">0</div>
+              <div style="font-size: 11px; color: #7f8c8d;">SOL per trade</div>
+            </div>
+            <div style="background: #2c3e50; padding: 15px; border-radius: 8px;">
+              <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">Active Strategies</div>
+              <div style="font-size: 20px; font-weight: bold;" id="active-strategies-count">0</div>
+              <div style="font-size: 11px; color: #7f8c8d;">Currently running</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Trades -->
+        <div class="section">
+          <h2>Recent Trades</h2>
+          <div id="recent-trades-list" class="activity-log">
+            <div class="empty-state">Loading trades...</div>
+          </div>
+        </div>
+
+        <!-- Volume by Token -->
+        <div class="section">
+          <h2>Volume by Token (Last 7 Days)</h2>
+          <div id="volume-by-token" style="background: #2c3e50; padding: 20px; border-radius: 8px;">
+            <div class="empty-state">Loading volume data...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Archive Page -->
+      <div id="archive-page" class="page">
+        <h1>📦 Strategy Archive</h1>
+        <p class="page-description">View archived strategies with all their data preserved. Restore them anytime or sync to cloud.</p>
+
+        <div class="section">
+          <div style="background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #3498db;">📦 About Archive</h3>
+            <div style="font-size: 13px; color: #bdc3c7; line-height: 1.6;">
+              <p><strong>✅ All data preserved:</strong> Transactions, activity logs, and strategy configuration</p>
+              <p><strong>📂 Local storage:</strong> Archived strategies are stored on your computer</p>
+              <p><strong>☁️ Cloud sync:</strong> Option to sync to cloud for backup (coming soon)</p>
+              <p><strong>♻️ Restore anytime:</strong> Bring strategies back to active status</p>
+              <p><strong>🗑️ Permanent delete:</strong> Only deletes if you explicitly choose to</p>
+            </div>
+          </div>
+
+          <div id="archive-list" class="strategies-list">
+            <div class="empty-state">Loading archived strategies...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Activity Log Page -->
       <div id="activity-page" class="page">
-        <h1>Activity Log</h1>
-        <div class="activity-log">
-          <div class="empty-state">No transactions yet. Start a strategy to see activity!</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h1>Activity Log</h1>
+          <button id="refresh-activity-btn" class="btn btn-small" style="background: #3498db;">
+            🔄 Refresh
+          </button>
+        </div>
+        
+        <div class="section">
+          <div class="form-row" style="margin-bottom: 15px;">
+            <div class="form-group">
+              <label>Filter by Category</label>
+              <select id="activity-filter-category">
+                <option value="">All Categories</option>
+                <option value="strategy">Strategies</option>
+                <option value="trade">Trades</option>
+                <option value="wallet">Wallets</option>
+                <option value="system">System</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div id="activity-log-list" class="activity-log">
+          <div class="empty-state">Loading activity...</div>
         </div>
       </div>
 
@@ -441,6 +742,21 @@
       <div id="wallet-page" class="page">
         <h1>Wallet Management</h1>
         
+        <!-- Create/Import Main Wallet Section -->
+        <div class="section">
+          <h2>🔑 Create or Import Main Wallet</h2>
+          <p>Start by creating a new wallet or importing an existing one</p>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button id="wallet-generate-new-btn" class="btn btn-primary">
+              ✨ Generate New Wallet
+            </button>
+            <button id="wallet-import-btn" class="btn btn-secondary">
+              📥 Import Existing Wallet
+            </button>
+          </div>
+          <div id="wallet-create-status" class="status-message"></div>
+        </div>
+
         <div class="section">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h2 style="margin: 0;">My Wallets</h2>

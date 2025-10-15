@@ -1,8 +1,14 @@
 import { Connection, Keypair, VersionedTransaction, PublicKey } from '@solana/web3.js';
 import fetch from 'cross-fetch';
 
-const JUPITER_API_V6 = 'https://quote-api.jup.ag/v6';
-const JUPITER_API_FALLBACK = 'https://api.jup.ag/v6'; // Fallback endpoint
+// Jupiter API endpoints - prioritized by reliability
+const JUPITER_API_V6 = 'https://quote-api.jup.ag/v6'; // Primary - most reliable
+const JUPITER_API_FALLBACK = 'https://public.jupiterapi.com/v6'; // Public mirror
+const JUPITER_API_FALLBACK2 = 'https://lite-api.jup.ag/v6'; // Lite version (may have limited routes)
+
+// Additional fallback using direct IP if DNS fails (CloudFlare CDN)
+const JUPITER_API_IP_FALLBACK = 'https://104.26.9.40/v6'; // quote-api IP (update as needed)
+
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Fetch with timeout
@@ -23,7 +29,21 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 10000)
   }
 }
 
-// Retry logic with exponential backoff
+// Check if error is DNS-related
+function isDnsError(error: any): boolean {
+  const dnsErrors = [
+    'ENOTFOUND',
+    'ENOENT', 
+    'EAI_AGAIN',
+    'ETIMEDOUT',
+    'ECONNREFUSED',
+    'getaddrinfo'
+  ];
+  const errorString = error?.message?.toLowerCase() || error?.code || '';
+  return dnsErrors.some(dnsErr => errorString.includes(dnsErr.toLowerCase()));
+}
+
+// Retry logic with exponential backoff and DNS error detection
 async function fetchWithRetry(url: string, options: any = {}, maxRetries = 3): Promise<Response> {
   let lastError: any;
   
@@ -33,12 +53,33 @@ async function fetchWithRetry(url: string, options: any = {}, maxRetries = 3): P
       return await fetchWithTimeout(url, options, timeout);
     } catch (error: any) {
       lastError = error;
+      
+      // Log specific error type
+      if (isDnsError(error)) {
+        console.log(`🌐 DNS/Network error on attempt ${i + 1}/${maxRetries}: ${error.message}`);
+        console.log('💡 Tip: Run fix-jupiter-dns.bat or check your internet connection');
+      } else {
+        console.log(`❌ Request error on attempt ${i + 1}/${maxRetries}: ${error.message}`);
+      }
+      
       if (i < maxRetries - 1) {
         // Exponential backoff: 1s, 2s, 4s
         const delay = Math.pow(2, i) * 1000;
+        console.log(`⏳ Retrying in ${delay / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
+  }
+  
+  // Provide helpful error message based on error type
+  if (isDnsError(lastError)) {
+    throw new Error(
+      `DNS/Network error: Cannot reach Jupiter API. ` +
+      `This is usually a DNS or firewall issue. ` +
+      `Solutions: 1) Run fix-jupiter-dns.bat as Administrator, ` +
+      `2) Change DNS to 8.8.8.8, 3) Check firewall settings. ` +
+      `Original error: ${lastError.message}`
+    );
   }
   
   throw lastError;
@@ -125,8 +166,8 @@ export class JupiterClient {
   }): Promise<QuoteResponse> {
     const { inputMint, outputMint, amount, slippageBps = 50, onlyDirectRoutes = false } = params;
 
-    // Try primary, then fallback
-    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK];
+    // Try all endpoints: Primary, public mirror, lite version, then IP fallback
+    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK, JUPITER_API_FALLBACK2, JUPITER_API_IP_FALLBACK];
     let lastError: any;
     
     for (const apiUrl of apiUrls) {
@@ -218,16 +259,46 @@ export class JupiterClient {
 
         // Send the transaction
         const rawTransaction = transaction.serialize();
-        const signature = await this.connection.sendRawTransaction(rawTransaction, {
-          skipPreflight: false,
-          maxRetries: 3,
-        });
+        let signature: string;
+        
+        try {
+          signature = await this.connection.sendRawTransaction(rawTransaction, {
+            skipPreflight: false,
+            maxRetries: 3,
+          });
+        } catch (sendError: any) {
+          // Get detailed error logs if available
+          console.error('❌ SendRawTransaction failed:', sendError);
+          
+          if (sendError.logs) {
+            console.error('Transaction logs:', sendError.logs);
+          }
+          
+          // Check for specific errors
+          if (sendError.message?.includes('insufficient')) {
+            throw new Error('Insufficient SOL balance for transaction. Need ~0.02 SOL minimum (trade + fees)');
+          } else if (sendError.message?.includes('blockhash')) {
+            throw new Error('Transaction expired (blockhash). Try again.');
+          } else if (sendError.message?.includes('slippage')) {
+            throw new Error('Slippage tolerance exceeded. Increase slippage to 2-5%');
+          }
+          
+          throw new Error(`Failed to send transaction: ${sendError.message}${sendError.logs ? '\nLogs: ' + sendError.logs.join('\n') : ''}`);
+        }
 
         // Wait for confirmation
         const confirmation = await this.connection.confirmTransaction(signature, 'confirmed');
 
         if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          // Get transaction details for better error message
+          const tx = await this.connection.getTransaction(signature, {
+            maxSupportedTransactionVersion: 0
+          });
+          
+          const errorLogs = tx?.meta?.logMessages?.join('\n') || 'No logs available';
+          console.error('Transaction failed with logs:', errorLogs);
+          
+          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}\nLogs:\n${errorLogs}`);
         }
 
         // Determine which DEX was used
@@ -284,10 +355,23 @@ export class JupiterClient {
       await this.loadTokenList();
     }
 
-    const token = this.tokenListCache!.find(t => t.address === mintAddress);
+    let token = this.tokenListCache!.find(t => t.address === mintAddress);
     
     if (!token) {
-      // If not in strict list, try to fetch on-chain
+      // Try all tokens list (not just strict)
+      try {
+        const allTokensResponse = await fetchWithRetry('https://token.jup.ag/all', {}, 2);
+        if (allTokensResponse.ok) {
+          const allTokens = await allTokensResponse.json();
+          token = allTokens.find((t: any) => t.address === mintAddress);
+        }
+      } catch (err) {
+        console.log('Could not fetch from all tokens list');
+      }
+    }
+    
+    if (!token) {
+      // If still not found, try to fetch on-chain
       return await this.fetchOnChainTokenInfo(mintAddress);
     }
 
@@ -387,28 +471,138 @@ export class JupiterClient {
   }
 
   /**
-   * Check if Jupiter API is accessible
+   * Get comprehensive token data (info + price + validation)
+   */
+  async getTokenData(mintAddress: string): Promise<{
+    info: TokenInfo | null;
+    priceInSol: number;
+    isTradeable: boolean;
+    estimatedSlippage: number;
+  }> {
+    try {
+      // Get basic info
+      const info = await this.getTokenInfo(mintAddress);
+      
+      // Try to get a small quote to validate and get price
+      let priceInSol = 0;
+      let isTradeable = false;
+      let estimatedSlippage = 0;
+      
+      try {
+        const testAmount = 0.01 * Math.pow(10, 9); // 0.01 SOL test
+        const quote = await this.getQuote({
+          inputMint: SOL_MINT,
+          outputMint: mintAddress,
+          amount: testAmount,
+          slippageBps: 5000, // Allow high slippage for test
+        });
+        
+        isTradeable = true;
+        
+        // Calculate price per token
+        if (info) {
+          const tokensReceived = Number(quote.outAmount) / Math.pow(10, info.decimals);
+          priceInSol = 0.01 / tokensReceived; // Price of 1 token in SOL
+        }
+        
+        // Estimate slippage from price impact
+        estimatedSlippage = parseFloat(quote.priceImpactPct || '0');
+        
+      } catch (quoteError) {
+        console.log('Could not get quote for token:', mintAddress);
+      }
+      
+      return {
+        info,
+        priceInSol,
+        isTradeable,
+        estimatedSlippage
+      };
+    } catch (error: any) {
+      console.error('Failed to get token data:', error);
+      return {
+        info: null,
+        priceInSol: 0,
+        isTradeable: false,
+        estimatedSlippage: 0
+      };
+    }
+  }
+
+  /**
+   * Check if Jupiter API is accessible with detailed diagnostics
    */
   async healthCheck(): Promise<boolean> {
-    // Try both endpoints
-    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK];
+    console.log('🔍 Testing Jupiter API connectivity...');
+    
+    // Try all endpoints including IP fallback
+    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK, JUPITER_API_FALLBACK2, JUPITER_API_IP_FALLBACK];
+    let dnsErrorCount = 0;
+    let timeoutErrorCount = 0;
+    let otherErrorCount = 0;
     
     for (const apiUrl of apiUrls) {
       try {
         const response = await fetchWithTimeout(`${apiUrl}/quote?inputMint=${SOL_MINT}&outputMint=${SOL_MINT}&amount=1000000`, {}, 5000);
         if (response.ok) {
-          // Set fallback flag if fallback worked
-          if (apiUrl === JUPITER_API_FALLBACK && !this.useFallback) {
+          console.log(`✅ Jupiter API accessible at: ${apiUrl}`);
+          // Remember which endpoint worked
+          if (apiUrl !== JUPITER_API_V6) {
             this.useFallback = true;
-            console.log('✅ Jupiter fallback API is accessible');
+            this.apiUrl = apiUrl;
           }
           return true;
         }
-      } catch (error) {
-        console.log(`Health check failed for ${apiUrl}`);
+      } catch (error: any) {
+        console.log(`❌ Health check failed for ${apiUrl}: ${error.message}`);
+        
+        // Categorize error
+        if (isDnsError(error)) {
+          dnsErrorCount++;
+        } else if (error.message?.includes('timeout') || error.message?.includes('ETIMEDOUT')) {
+          timeoutErrorCount++;
+        } else {
+          otherErrorCount++;
+        }
         continue;
       }
     }
+    
+    // Provide specific diagnostic information
+    console.log('\n⚠️  All Jupiter endpoints failed. Diagnostics:');
+    
+    if (dnsErrorCount >= 3) {
+      console.log('❌ DNS Resolution Problem Detected!');
+      console.log('   All/most endpoints failed with DNS errors.');
+      console.log('   This means your computer cannot find Jupiter API servers.');
+      console.log('\n💡 SOLUTIONS:');
+      console.log('   1. Run: fix-jupiter-dns.bat (as Administrator)');
+      console.log('   2. Change DNS to 8.8.8.8 or 1.1.1.1');
+      console.log('   3. Flush DNS: ipconfig /flushdns');
+      console.log('   4. Check your internet connection');
+      console.log('   5. Try a VPN if your ISP blocks crypto APIs');
+    } else if (timeoutErrorCount >= 3) {
+      console.log('❌ Network Timeout Problem Detected!');
+      console.log('   All/most endpoints are timing out.');
+      console.log('\n💡 SOLUTIONS:');
+      console.log('   1. Check firewall settings (allow Electron/Node.js)');
+      console.log('   2. Check if antivirus is blocking connections');
+      console.log('   3. Restart your router');
+      console.log('   4. Try on a different network (mobile hotspot)');
+    } else if (dnsErrorCount > 0) {
+      console.log('❌ Intermittent DNS Problems Detected!');
+      console.log(`   ${dnsErrorCount}/4 endpoints had DNS errors.`);
+      console.log('\n💡 SOLUTIONS:');
+      console.log('   1. Flush DNS cache: ipconfig /flushdns');
+      console.log('   2. Wait a few minutes and try again');
+      console.log('   3. App will automatically retry with working endpoints');
+    } else {
+      console.log('❌ Jupiter API may be down (rare)');
+      console.log('   Check https://status.jup.ag for status');
+      console.log('   App will retry automatically during swaps');
+    }
+    
+    console.log('\n📊 For detailed diagnostics, run: diagnose-jupiter.bat\n');
     
     return false;
   }

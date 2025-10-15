@@ -18,8 +18,50 @@ let licenseManager: LicenseManager | null = null;
 let feeManager: FeeManager | null = null;
 const activeStrategies = new Map<number, DCAStrategy | RatioStrategy | BundleStrategy>();
 
+// Activity Log Helper
+function logActivity(params: {
+  eventType: string;
+  category: 'strategy' | 'trade' | 'wallet' | 'system';
+  title: string;
+  description?: string;
+  strategyId?: number;
+  walletId?: number;
+  transactionId?: number;
+  metadata?: any;
+  severity?: 'info' | 'success' | 'warning' | 'error';
+}) {
+  try {
+    const db = require('./database/schema').getDatabase();
+    db.prepare(`
+      INSERT INTO activity_logs (event_type, category, title, description, strategy_id, wallet_id, transaction_id, metadata, severity, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      params.eventType,
+      params.category,
+      params.title,
+      params.description || null,
+      params.strategyId || null,
+      params.walletId || null,
+      params.transactionId || null,
+      params.metadata ? JSON.stringify(params.metadata) : null,
+      params.severity || 'info',
+      Date.now()
+    );
+    
+    // Send to frontend if window is available
+    if (mainWindow) {
+      mainWindow.webContents.send('activity-log-update', {
+        ...params,
+        timestamp: Date.now()
+      });
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to log activity:', error.message);
+  }
+}
+
 // Default RPC URL (can be changed in settings)
-const DEFAULT_RPC_URL = 'https://api.mainnet-beta.solana.com';
+const DEFAULT_RPC_URL = 'https://mainnet.helius-rpc.com/?api-key=18937bea-7c1f-4930-9474-7c3b715235de';
 
 // Configure auto-updater
 autoUpdater.autoDownload = false; // Ask user before downloading
@@ -153,14 +195,16 @@ async function loadActiveStrategiesFromDatabase() {
             await strategy.start();
           }
         } else if (s.type === 'ratio') {
-          const strategy = new RatioStrategy(strategyId, config, jupiterClient!, walletManager!);
+          const { RatioSimpleStrategy } = require('./strategies/ratio-simple');
+          const strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient!, walletManager!);
           activeStrategies.set(strategyId, strategy);
           
           if (s.status === 'active') {
             await strategy.start();
           }
         } else if (s.type === 'bundle') {
-          const strategy = new BundleStrategy(strategyId, config, jupiterClient!, walletManager!);
+          const { BundleReconcileStrategy } = require('./strategies/bundle-reconcile');
+          const strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient!, walletManager!);
           activeStrategies.set(strategyId, strategy);
           
           if (s.status === 'active') {
@@ -287,11 +331,14 @@ ipcMain.handle('wallet:getAllWithBalances', async (event) => {
     if (!walletManager) throw new Error('Wallet manager not initialized');
     const wallets = walletManager.getAllWallets();
     
-    // Get balances for each wallet
+    // Get balances (SOL + tokens) for each wallet
     const walletsWithBalances = await Promise.all(
       wallets.map(async (wallet) => {
-        const balance = await walletManager!.getBalance(wallet.publicKey);
-        return { ...wallet, balance };
+        const [balance, tokens] = await Promise.all([
+          walletManager!.getBalance(wallet.publicKey),
+          walletManager!.getAllTokenBalances(wallet.publicKey)
+        ]);
+        return { ...wallet, balance, tokens };
       })
     );
     
@@ -438,6 +485,18 @@ ipcMain.handle('jupiter:getTokenInfo', async (event, mintAddress: string) => {
   }
 });
 
+ipcMain.handle('jupiter:getTokenData', async (event, mintAddress: string) => {
+  try {
+    if (!jupiterClient) throw new Error('Jupiter client not initialized');
+    console.log(`Fetching comprehensive token data for: ${mintAddress}`);
+    const tokenData = await jupiterClient.getTokenData(mintAddress);
+    return { success: true, ...tokenData };
+  } catch (error: any) {
+    console.error('Error fetching token data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('jupiter:validateToken', async (event, mintAddress: string) => {
   try {
     if (!jupiterClient) throw new Error('Jupiter client not initialized');
@@ -532,11 +591,10 @@ ipcMain.handle('strategies:getAll', async (event) => {
         t.symbol as token_symbol
       FROM strategies s
       LEFT JOIN tokens t ON s.token_address = t.contract_address
-      WHERE s.status IN ('active', 'paused')
       ORDER BY s.created_at DESC
     `).all();
     
-    console.log(`📊 Returning ${strategies.length} active/paused strategies`);
+    console.log(`📊 Returning ${strategies.length} strateg(ies)`);
     
     // Parse config JSON for each strategy
     const parsedStrategies = strategies.map((s: any) => ({
@@ -550,6 +608,138 @@ ipcMain.handle('strategies:getAll', async (event) => {
     return { success: true, strategies: parsedStrategies };
   } catch (error: any) {
     console.error('❌ Error getting strategies:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================================================
+// IPC HANDLERS - Transaction History
+// ============================================================================
+
+ipcMain.handle('transactions:getAll', async (event) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+    
+    const transactions = db.prepare(`
+      SELECT 
+        id,
+        strategy_id,
+        signature as transaction_id,
+        type as direction,
+        input_token,
+        output_token,
+        input_amount,
+        output_amount,
+        CASE 
+          WHEN input_token = '${SOL_MINT}' THEN input_amount
+          WHEN output_token = '${SOL_MINT}' THEN output_amount
+          ELSE 0
+        END as amount_sol,
+        dex_used,
+        price,
+        status,
+        error,
+        timestamp,
+        CASE 
+          WHEN type = 'buy' THEN output_token 
+          ELSE input_token 
+        END as token_mint
+      FROM transactions
+      ORDER BY timestamp DESC
+      LIMIT 1000
+    `).all();
+    
+    console.log(`📊 Retrieved ${transactions.length} transactions from database`);
+    
+    // Debug: show first transaction if exists
+    if (transactions.length > 0) {
+      console.log('First transaction:', {
+        id: transactions[0].id,
+        direction: transactions[0].direction,
+        token_mint: transactions[0].token_mint,
+        amount_sol: transactions[0].amount_sol,
+        status: transactions[0].status
+      });
+    }
+    
+    return { success: true, transactions };
+  } catch (error: any) {
+    console.error('❌ Error getting transactions:', error);
+    return { success: false, error: error.message, transactions: [] };
+  }
+});
+
+ipcMain.handle('transactions:getByStrategy', async (event, strategyId: number) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    
+    const transactions = db.prepare(`
+      SELECT * FROM transactions
+      WHERE strategy_id = ?
+      ORDER BY timestamp DESC
+    `).all(strategyId);
+    
+    return { success: true, transactions };
+  } catch (error: any) {
+    console.error('❌ Error getting strategy transactions:', error);
+    return { success: false, error: error.message, transactions: [] };
+  }
+});
+
+ipcMain.handle('transactions:getStats', async (event) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+    
+    // Total trades
+    const totalTrades = db.prepare('SELECT COUNT(*) as count FROM transactions').get();
+    
+    // Successful trades
+    const successfulTrades = db.prepare(`
+      SELECT COUNT(*) as count FROM transactions WHERE status = 'confirmed'
+    `).get();
+    
+    // Total volume in SOL (both buy and sell)
+    // For BUY: SOL is input_token, count input_amount
+    // For SELL: SOL is output_token, count output_amount
+    const totalVolume = db.prepare(`
+      SELECT SUM(
+        CASE 
+          WHEN input_token = ? THEN input_amount
+          WHEN output_token = ? THEN output_amount
+          ELSE 0
+        END
+      ) as volume 
+      FROM transactions 
+      WHERE status = 'confirmed'
+    `).get(SOL_MINT, SOL_MINT);
+    
+    // Today's volume (last 24 hours)
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    const todayVolume = db.prepare(`
+      SELECT SUM(
+        CASE 
+          WHEN input_token = ? THEN input_amount
+          WHEN output_token = ? THEN output_amount
+          ELSE 0
+        END
+      ) as volume 
+      FROM transactions 
+      WHERE status = 'confirmed' AND timestamp >= ?
+    `).get(SOL_MINT, SOL_MINT, oneDayAgo);
+    
+    return {
+      success: true,
+      stats: {
+        totalTrades: totalTrades.count || 0,
+        successfulTrades: successfulTrades.count || 0,
+        totalVolume: totalVolume.volume || 0,
+        todayVolume: todayVolume.volume || 0
+      }
+    };
+  } catch (error: any) {
+    console.error('❌ Error getting transaction stats:', error);
     return { success: false, error: error.message };
   }
 });
@@ -606,6 +796,24 @@ ipcMain.handle('strategy:dca:create', async (event, config: DCAConfig) => {
     const strategy = new DCAStrategy(strategyId, config, jupiterClient, walletManager);
     activeStrategies.set(strategyId, strategy);
     
+    // Log activity
+    logActivity({
+      eventType: 'strategy_created',
+      category: 'strategy',
+      title: `DCA Strategy #${strategyId} Created`,
+      description: `${config.direction === 'buy' ? 'Buy' : 'Sell'} ${config.totalAmount} over ${config.numberOfOrders} orders`,
+      strategyId,
+      metadata: {
+        type: 'dca',
+        direction: config.direction,
+        totalAmount: config.totalAmount,
+        numberOfOrders: config.numberOfOrders,
+        frequency: config.frequency,
+        tokenAddress: config.tokenAddress
+      },
+      severity: 'success'
+    });
+    
     return { success: true, strategyId };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -614,17 +822,85 @@ ipcMain.handle('strategy:dca:create', async (event, config: DCAConfig) => {
 
 ipcMain.handle('strategy:dca:start', async (event, strategyId: number) => {
   try {
-    const strategy = activeStrategies.get(strategyId) as DCAStrategy;
-    if (!strategy) throw new Error('Strategy not found');
+    if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
+    
+    // Get strategy config from database
+    const db = require('./database/schema').getDatabase();
+    const strategyData = db.prepare('SELECT config FROM strategies WHERE id = ?').get(strategyId) as any;
+    if (!strategyData) throw new Error('Strategy not found in database');
+    
+    const config = JSON.parse(strategyData.config) as DCAConfig;
+    
+    // Get or create strategy instance
+    let strategy = activeStrategies.get(strategyId) as DCAStrategy;
+    if (!strategy) {
+      console.log(`   Creating new DCA strategy instance for #${strategyId}`);
+      strategy = new DCAStrategy(strategyId, config, jupiterClient, walletManager);
+      activeStrategies.set(strategyId, strategy);
+    }
+    
+    // Check wallet balance
+    // Get the wallet to be used for this strategy (or default to main wallet)
+    let walletToUse: any;
+    if (config.walletId) {
+      // Find wallet by ID or public key
+      walletToUse = walletManager.getAllWallets().find(w => 
+        w.id === Number(config.walletId) || w.publicKey === config.walletId
+      );
+      if (!walletToUse) {
+        throw new Error(`Wallet not found: ${config.walletId}`);
+      }
+    } else {
+      // Use main wallet
+      walletToUse = walletManager.getAllWallets().find(w => w.isMain);
+      if (!walletToUse) throw new Error('No main wallet found');
+    }
+    
+    const balance = await walletManager.getBalance(walletToUse.publicKey);
+    
+    // Validate balance based on direction
+    if (config.direction === 'buy') {
+      const requiredSOL = config.totalAmount + 0.01; // Add buffer for fees
+      if (balance < requiredSOL) {
+        throw new Error(`Insufficient SOL balance in wallet ${walletToUse.label || walletToUse.publicKey.substring(0, 8)}. Required: ${requiredSOL.toFixed(4)} SOL, Available: ${balance.toFixed(4)} SOL`);
+      }
+    } else {
+      // For sell, check token balance
+      const tokenBalance = await walletManager.getTokenBalance(walletToUse.publicKey, config.tokenAddress);
+      if (tokenBalance < config.totalAmount) {
+        throw new Error(`Insufficient token balance in wallet ${walletToUse.label || walletToUse.publicKey.substring(0, 8)}. Required: ${config.totalAmount}, Available: ${tokenBalance}`);
+      }
+    }
+    
+    // Balance is sufficient, start strategy
     await strategy.start();
     
     // Update database status to active
-    const db = require('./database/schema').getDatabase();
     db.prepare('UPDATE strategies SET status = ?, updated_at = ? WHERE id = ?')
       .run('active', Date.now(), strategyId);
     
+    // Log activity
+    logActivity({
+      eventType: 'strategy_started',
+      category: 'strategy',
+      title: `DCA Strategy #${strategyId} Started`,
+      description: 'Strategy is now actively executing trades',
+      strategyId,
+      severity: 'success'
+    });
+    
     return { success: true };
   } catch (error: any) {
+    // Log failure to activity log
+    logActivity({
+      eventType: 'strategy_start_failed',
+      category: 'strategy',
+      title: `❌ Failed to Start Strategy #${strategyId}`,
+      description: error.message,
+      strategyId,
+      severity: 'error'
+    });
+    
     return { success: false, error: error.message };
   }
 });
@@ -639,6 +915,16 @@ ipcMain.handle('strategy:dca:pause', async (event, strategyId: number) => {
     const db = require('./database/schema').getDatabase();
     db.prepare('UPDATE strategies SET status = ?, updated_at = ? WHERE id = ?')
       .run('paused', Date.now(), strategyId);
+    
+    // Log activity
+    logActivity({
+      eventType: 'strategy_paused',
+      category: 'strategy',
+      title: `DCA Strategy #${strategyId} Paused`,
+      description: 'Strategy execution temporarily suspended',
+      strategyId,
+      severity: 'info'
+    });
     
     return { success: true };
   } catch (error: any) {
@@ -664,6 +950,16 @@ ipcMain.handle('strategy:dca:stop', async (event, strategyId: number) => {
     
     console.log(`✅ Strategy #${strategyId} marked as stopped in DB (${result.changes} rows updated)`);
     
+    // Log activity
+    logActivity({
+      eventType: 'strategy_stopped',
+      category: 'strategy',
+      title: `DCA Strategy #${strategyId} Stopped`,
+      description: 'Strategy execution terminated',
+      strategyId,
+      severity: 'warning'
+    });
+    
     return { success: true };
   } catch (error: any) {
     console.error(`❌ Error stopping strategy #${strategyId}:`, error);
@@ -679,6 +975,8 @@ ipcMain.handle('strategy:ratio:create', async (event, config) => {
   try {
     if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
     
+    console.log('Creating Ratio strategy with config:', config);
+    
     const db = require('./database/schema').getDatabase();
     const result = db.prepare(`
       INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
@@ -687,23 +985,68 @@ ipcMain.handle('strategy:ratio:create', async (event, config) => {
     
     const strategyId = result.lastInsertRowid as number;
     
-    const strategy = new RatioStrategy(strategyId, config, jupiterClient, walletManager);
+    // Use the new simplified ratio strategy
+    const { RatioSimpleStrategy } = require('./strategies/ratio-simple');
+    const strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient, walletManager);
     activeStrategies.set(strategyId, strategy);
+    
+    // Log activity
+    const db2 = require('./database/schema').getDatabase();
+    db2.prepare(`
+      INSERT INTO activity_logs (event_type, category, title, description, strategy_id, metadata, severity, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'strategy_created',
+      'strategy',
+      `Ratio Strategy #${strategyId} Created`,
+      `${config.buyCount} buys : ${config.sellCount} sells pattern with ${config.totalSolLimit} SOL limit`,
+      strategyId,
+      JSON.stringify({
+        type: 'ratio',
+        buyCount: config.buyCount,
+        sellCount: config.sellCount,
+        initialSol: config.initialSolPerTrade,
+        totalLimit: config.totalSolLimit
+      }),
+      'success',
+      Date.now()
+    );
     
     return { success: true, strategyId };
   } catch (error: any) {
+    console.error('Error creating ratio strategy:', error);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('strategy:ratio:start', async (event, strategyId: number) => {
   try {
-    const strategy = activeStrategies.get(strategyId) as RatioStrategy;
-    if (!strategy) throw new Error('Strategy not found');
-    await strategy.start();
+    if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
+    
+    // Get strategy config from database
+    const db = require('./database/schema').getDatabase();
+    const strategyData = db.prepare('SELECT config FROM strategies WHERE id = ?').get(strategyId) as any;
+    if (!strategyData) throw new Error('Strategy not found in database');
+    
+    const config = JSON.parse(strategyData.config);
+    
+    // Get or create strategy instance using new simplified version
+    const existingStrategy = activeStrategies.get(strategyId);
+    let strategy;
+    if (!existingStrategy) {
+      console.log(`   Creating new Ratio strategy instance for #${strategyId}`);
+      const { RatioSimpleStrategy } = require('./strategies/ratio-simple');
+      strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient, walletManager);
+      activeStrategies.set(strategyId, strategy);
+    } else {
+      strategy = existingStrategy;
+    }
+    
+    if ('start' in strategy) {
+      await strategy.start();
+    }
     
     // Update database status to active
-    const db = require('./database/schema').getDatabase();
     db.prepare('UPDATE strategies SET status = ?, updated_at = ? WHERE id = ?')
       .run('active', Date.now(), strategyId);
     
@@ -715,9 +1058,11 @@ ipcMain.handle('strategy:ratio:start', async (event, strategyId: number) => {
 
 ipcMain.handle('strategy:ratio:pause', async (event, strategyId: number) => {
   try {
-    const strategy = activeStrategies.get(strategyId) as RatioStrategy;
+    const strategy = activeStrategies.get(strategyId);
     if (!strategy) throw new Error('Strategy not found');
-    await strategy.pause();
+    if ('pause' in strategy) {
+      await strategy.pause();
+    }
     
     // Update database status to paused
     const db = require('./database/schema').getDatabase();
@@ -733,11 +1078,13 @@ ipcMain.handle('strategy:ratio:pause', async (event, strategyId: number) => {
 ipcMain.handle('strategy:ratio:stop', async (event, strategyId: number) => {
   try {
     console.log(`⏹️ Stopping Ratio strategy #${strategyId}`);
-    const strategy = activeStrategies.get(strategyId) as RatioStrategy;
+    const strategy = activeStrategies.get(strategyId);
     if (!strategy) {
       console.log(`⚠️ Strategy #${strategyId} not found in activeStrategies`);
     } else {
-      await strategy.stop();
+      if ('stop' in strategy) {
+        await strategy.stop();
+      }
       activeStrategies.delete(strategyId);
     }
     
@@ -763,6 +1110,8 @@ ipcMain.handle('strategy:bundle:create', async (event, config) => {
   try {
     if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
     
+    console.log('Creating Bundle Reconcile strategy with config:', config);
+    
     const db = require('./database/schema').getDatabase();
     const result = db.prepare(`
       INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
@@ -771,23 +1120,67 @@ ipcMain.handle('strategy:bundle:create', async (event, config) => {
     
     const strategyId = result.lastInsertRowid as number;
     
-    const strategy = new BundleStrategy(strategyId, config, jupiterClient, walletManager);
+    // Use the new reconciling bundle strategy
+    const { BundleReconcileStrategy } = require('./strategies/bundle-reconcile');
+    const strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient, walletManager);
     activeStrategies.set(strategyId, strategy);
+    
+    // Log activity
+    const db2 = require('./database/schema').getDatabase();
+    db2.prepare(`
+      INSERT INTO activity_logs (event_type, category, title, description, strategy_id, metadata, severity, timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'strategy_created',
+      'strategy',
+      `Bundle Reconcile Strategy #${strategyId} Created`,
+      `${config.bundleType === 'instant' ? 'Instant' : 'Delayed'} bundle: ${config.buysPerBundle} buys → reconciling sell`,
+      strategyId,
+      JSON.stringify({
+        type: 'bundle_reconcile',
+        bundleType: config.bundleType,
+        buysPerBundle: config.buysPerBundle,
+        totalBundles: config.totalBundles
+      }),
+      'success',
+      Date.now()
+    );
     
     return { success: true, strategyId };
   } catch (error: any) {
+    console.error('Error creating bundle strategy:', error);
     return { success: false, error: error.message };
   }
 });
 
 ipcMain.handle('strategy:bundle:start', async (event, strategyId: number) => {
   try {
-    const strategy = activeStrategies.get(strategyId) as BundleStrategy;
-    if (!strategy) throw new Error('Strategy not found');
-    await strategy.start();
+    if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
+    
+    // Get strategy config from database
+    const db = require('./database/schema').getDatabase();
+    const strategyData = db.prepare('SELECT config FROM strategies WHERE id = ?').get(strategyId) as any;
+    if (!strategyData) throw new Error('Strategy not found in database');
+    
+    const config = JSON.parse(strategyData.config);
+    
+    // Get or create strategy instance using new reconcile version
+    const existingStrategy = activeStrategies.get(strategyId);
+    let strategy;
+    if (!existingStrategy) {
+      console.log(`   Creating new Bundle Reconcile strategy instance for #${strategyId}`);
+      const { BundleReconcileStrategy } = require('./strategies/bundle-reconcile');
+      strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient, walletManager);
+      activeStrategies.set(strategyId, strategy);
+    } else {
+      strategy = existingStrategy;
+    }
+    
+    if ('start' in strategy) {
+      await strategy.start();
+    }
     
     // Update database status to active
-    const db = require('./database/schema').getDatabase();
     db.prepare('UPDATE strategies SET status = ?, updated_at = ? WHERE id = ?')
       .run('active', Date.now(), strategyId);
     
@@ -799,9 +1192,11 @@ ipcMain.handle('strategy:bundle:start', async (event, strategyId: number) => {
 
 ipcMain.handle('strategy:bundle:pause', async (event, strategyId: number) => {
   try {
-    const strategy = activeStrategies.get(strategyId) as BundleStrategy;
+    const strategy = activeStrategies.get(strategyId);
     if (!strategy) throw new Error('Strategy not found');
-    await strategy.pause();
+    if ('pause' in strategy) {
+      await strategy.pause();
+    }
     
     // Update database status to paused
     const db = require('./database/schema').getDatabase();
@@ -817,11 +1212,13 @@ ipcMain.handle('strategy:bundle:pause', async (event, strategyId: number) => {
 ipcMain.handle('strategy:bundle:stop', async (event, strategyId: number) => {
   try {
     console.log(`⏹️ Stopping Bundle strategy #${strategyId}`);
-    const strategy = activeStrategies.get(strategyId) as BundleStrategy;
+    const strategy = activeStrategies.get(strategyId);
     if (!strategy) {
       console.log(`⚠️ Strategy #${strategyId} not found in activeStrategies`);
     } else {
-      await strategy.stop();
+      if ('stop' in strategy) {
+        await strategy.stop();
+      }
       activeStrategies.delete(strategyId);
     }
     
@@ -835,6 +1232,211 @@ ipcMain.handle('strategy:bundle:stop', async (event, strategyId: number) => {
     return { success: true };
   } catch (error: any) {
     console.error(`❌ Error stopping strategy #${strategyId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================================================
+// IPC HANDLERS - Strategy Archive & Deletion
+// ============================================================================
+
+// Archive strategy (soft delete - keeps all data)
+ipcMain.handle('strategy:archive', async (event, strategyId: number, notes?: string) => {
+  try {
+    console.log(`📦 Archiving strategy #${strategyId}`);
+    
+    // Make sure strategy is stopped first
+    const strategy = activeStrategies.get(strategyId);
+    if (strategy) {
+      console.log(`⚠️ Strategy #${strategyId} is still active, stopping it first`);
+      if ('stop' in strategy) {
+        await strategy.stop();
+      }
+      activeStrategies.delete(strategyId);
+    }
+    
+    // Archive in database (keep all data)
+    const db = require('./database/schema').getDatabase();
+    
+    const result = db.prepare(`
+      UPDATE strategies 
+      SET status = 'archived', 
+          archived_at = ?,
+          archive_notes = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).run(Date.now(), notes || null, Date.now(), strategyId);
+    
+    if (result.changes > 0) {
+      console.log(`✅ Strategy #${strategyId} archived (all data preserved)`);
+      
+      // Log to activity
+      logActivity({
+        eventType: 'strategy_archived',
+        category: 'strategy',
+        title: `Strategy #${strategyId} Archived`,
+        description: notes || 'Strategy archived - all data preserved for local storage',
+        strategyId,
+        metadata: {
+          canRestore: true,
+          cloudSynced: false
+        },
+        severity: 'info'
+      });
+      
+      return { success: true };
+    } else {
+      return { success: false, error: 'Strategy not found' };
+    }
+  } catch (error: any) {
+    console.error(`❌ Error archiving strategy #${strategyId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Restore archived strategy
+ipcMain.handle('strategy:restore', async (event, strategyId: number) => {
+  try {
+    console.log(`♻️ Restoring strategy #${strategyId}`);
+    
+    const db = require('./database/schema').getDatabase();
+    
+    const result = db.prepare(`
+      UPDATE strategies 
+      SET status = 'stopped',
+          archived_at = NULL,
+          archive_notes = NULL,
+          updated_at = ?
+      WHERE id = ? AND status = 'archived'
+    `).run(Date.now(), strategyId);
+    
+    if (result.changes > 0) {
+      console.log(`✅ Strategy #${strategyId} restored`);
+      
+      logActivity({
+        eventType: 'strategy_restored',
+        category: 'strategy',
+        title: `Strategy #${strategyId} Restored`,
+        description: 'Strategy restored from archive',
+        strategyId,
+        severity: 'success'
+      });
+      
+      return { success: true };
+    } else {
+      return { success: false, error: 'Strategy not found or not archived' };
+    }
+  } catch (error: any) {
+    console.error(`❌ Error restoring strategy #${strategyId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get archived strategies
+ipcMain.handle('strategy:getArchived', async (event) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    
+    const strategies = db.prepare(`
+      SELECT 
+        s.*,
+        t.name as token_name,
+        t.symbol as token_symbol,
+        (SELECT COUNT(*) FROM transactions WHERE strategy_id = s.id) as transaction_count,
+        (SELECT SUM(input_amount) FROM transactions WHERE strategy_id = s.id AND status = 'confirmed') as total_volume
+      FROM strategies s
+      LEFT JOIN tokens t ON s.token_address = t.contract_address
+      WHERE s.status = 'archived'
+      ORDER BY s.archived_at DESC
+    `).all();
+    
+    // Parse config and progress JSON
+    const parsedStrategies = strategies.map((s: any) => ({
+      ...s,
+      config: JSON.parse(s.config),
+      progress: s.progress ? JSON.parse(s.progress) : null,
+      token_name: s.token_name || null,
+      token_symbol: s.token_symbol || null
+    }));
+    
+    return { success: true, strategies: parsedStrategies };
+  } catch (error: any) {
+    console.error('❌ Error getting archived strategies:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Permanently delete strategy (use with caution - deletes all data)
+ipcMain.handle('strategy:delete', async (event, strategyId: number) => {
+  try {
+    console.log(`🗑️ PERMANENTLY deleting strategy #${strategyId}`);
+    
+    // Make sure strategy is stopped first
+    const strategy = activeStrategies.get(strategyId);
+    if (strategy) {
+      console.log(`⚠️ Strategy #${strategyId} is still active, stopping it first`);
+      activeStrategies.delete(strategyId);
+    }
+    
+    // Delete from database (with related records)
+    const db = require('./database/schema').getDatabase();
+    
+    // Delete related activity logs first
+    db.prepare('DELETE FROM activity_logs WHERE strategy_id = ?').run(strategyId);
+    console.log(`   Deleted activity logs for strategy #${strategyId}`);
+    
+    // Delete related transactions (this will cascade if ON DELETE CASCADE is working)
+    db.prepare('DELETE FROM transactions WHERE strategy_id = ?').run(strategyId);
+    console.log(`   Deleted transactions for strategy #${strategyId}`);
+    
+    // Delete fee transactions
+    db.prepare('DELETE FROM fee_transactions WHERE strategy_id = ?').run(strategyId);
+    
+    // Finally delete the strategy
+    const result = db.prepare('DELETE FROM strategies WHERE id = ?').run(strategyId);
+    
+    if (result.changes > 0) {
+      console.log(`✅ Strategy #${strategyId} and all related records permanently deleted`);
+      
+      // Log to activity (without strategy_id since it's been deleted)
+      logActivity({
+        eventType: 'strategy_deleted',
+        category: 'strategy',
+        title: `Strategy #${strategyId} Permanently Deleted`,
+        description: 'Strategy and all related records permanently removed',
+        // Note: No strategyId here because the strategy has been deleted
+        severity: 'warning'
+      });
+      
+      return { success: true };
+    } else {
+      return { success: false, error: 'Strategy not found in database' };
+    }
+  } catch (error: any) {
+    console.error(`❌ Error deleting strategy #${strategyId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Mark strategy as synced to cloud
+ipcMain.handle('strategy:markSynced', async (event, strategyId: number) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    
+    const result = db.prepare(`
+      UPDATE strategies 
+      SET cloud_synced = TRUE,
+          updated_at = ?
+      WHERE id = ?
+    `).run(Date.now(), strategyId);
+    
+    if (result.changes > 0) {
+      console.log(`☁️ Strategy #${strategyId} marked as synced to cloud`);
+      return { success: true };
+    } else {
+      return { success: false, error: 'Strategy not found' };
+    }
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 });
@@ -898,6 +1500,119 @@ ipcMain.handle('updater:downloadUpdate', async (event) => {
 ipcMain.handle('updater:quitAndInstall', async (event) => {
   autoUpdater.quitAndInstall(false, true);
   return { success: true };
+});
+
+// ============================================================================
+// IPC HANDLERS - Statistics
+// ============================================================================
+
+ipcMain.handle('stats:getDashboard', async (event) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    const SOL_MINT = 'So11111111111111111111111111111111111111112';
+    
+    // Get total trades
+    const totalTrades = db.prepare('SELECT COUNT(*) as count FROM transactions').get() as any;
+    
+    // Get successful trades
+    const successfulTrades = db.prepare('SELECT COUNT(*) as count FROM transactions WHERE status = ?').get('confirmed') as any;
+    
+    // Get total volume in SOL (both buy and sell)
+    // For BUY: SOL is input_token, count input_amount
+    // For SELL: SOL is output_token, count output_amount
+    const volumeResult = db.prepare(`
+      SELECT SUM(
+        CASE 
+          WHEN input_token = ? THEN input_amount
+          WHEN output_token = ? THEN output_amount
+          ELSE 0
+        END
+      ) as volume 
+      FROM transactions 
+      WHERE status = ?
+    `).get(SOL_MINT, SOL_MINT, 'confirmed') as any;
+    
+    // Get today's volume (same logic)
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const todayVolume = db.prepare(`
+      SELECT SUM(
+        CASE 
+          WHEN input_token = ? THEN input_amount
+          WHEN output_token = ? THEN output_amount
+          ELSE 0
+        END
+      ) as volume 
+      FROM transactions 
+      WHERE status = ? AND timestamp >= ?
+    `).get(SOL_MINT, SOL_MINT, 'confirmed', todayStart) as any;
+    
+    // Get recent transactions
+    const recentTxs = db.prepare('SELECT * FROM transactions ORDER BY timestamp DESC LIMIT 5').all();
+    
+    return {
+      success: true,
+      stats: {
+        totalTrades: totalTrades.count || 0,
+        successfulTrades: successfulTrades.count || 0,
+        failedTrades: (totalTrades.count || 0) - (successfulTrades.count || 0),
+        totalVolume: volumeResult.volume || 0,
+        todayVolume: todayVolume.volume || 0,
+        recentTransactions: recentTxs
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================================================
+// IPC HANDLERS - Activity Logs
+// ============================================================================
+
+ipcMain.handle('activity:getAll', async (event, params?: { limit?: number; category?: string }) => {
+  try {
+    const db = require('./database/schema').getDatabase();
+    let query = `
+      SELECT 
+        a.*,
+        s.type as strategy_type,
+        w.label as wallet_label
+      FROM activity_logs a
+      LEFT JOIN strategies s ON a.strategy_id = s.id
+      LEFT JOIN wallets w ON a.wallet_id = w.id
+    `;
+    
+    const conditions: string[] = [];
+    const queryParams: any[] = [];
+    
+    if (params?.category) {
+      conditions.push('a.category = ?');
+      queryParams.push(params.category);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY a.timestamp DESC';
+    
+    if (params?.limit) {
+      query += ' LIMIT ?';
+      queryParams.push(params.limit);
+    }
+    
+    const logs = db.prepare(query).all(...queryParams);
+    
+    // Parse metadata JSON
+    const parsedLogs = logs.map((log: any) => ({
+      ...log,
+      metadata: log.metadata ? JSON.parse(log.metadata) : null
+    }));
+    
+    return { success: true, logs: parsedLogs };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 });
 
 // ============================================================================

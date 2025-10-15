@@ -229,3 +229,8 @@ cd C:\Users\maxxf\OneDrive\Desktop\shogun\Anvil3.0\anvil3.0\anvil-solo
 
 **Everything you need is working! Just find the window!** 💜
 
+
+
+
+
+
