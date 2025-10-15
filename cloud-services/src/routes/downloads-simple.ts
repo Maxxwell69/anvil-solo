@@ -52,25 +52,40 @@ const AVAILABLE_FILES = [
 // Get list of available files
 router.get('/list', async (req: Request, res: Response) => {
     try {
-        // Return all available files
-        const files = AVAILABLE_FILES.map(file => ({
-            id: file.id,
-            name: file.name,
-            displayName: file.displayName,
-            version: file.version,
-            size: file.size,
-            description: file.description,
-            platform: file.platform,
-            requiresLicense: file.requiresLicense,
-            minTier: file.minTier,
-            downloadUrl: `/api/downloads/${file.id}`,
-        }));
+        const downloadsDir = path.join(__dirname, '../../public/downloads');
+        
+        // Filter to only files that actually exist on disk
+        const availableFiles = AVAILABLE_FILES.filter(file => {
+            const filePath = path.join(downloadsDir, file.filepath);
+            return fs.existsSync(filePath);
+        });
+
+        // Map to response format
+        const files = availableFiles.map(file => {
+            const filePath = path.join(downloadsDir, file.filepath);
+            const stats = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+            
+            return {
+                id: file.id,
+                name: file.name,
+                displayName: file.displayName,
+                version: file.version,
+                size: stats ? stats.size : file.size,
+                description: file.description,
+                platform: file.platform,
+                requiresLicense: file.requiresLicense,
+                minTier: file.minTier,
+                downloadUrl: `/api/downloads/${file.id}`,
+            };
+        });
 
         res.json({
             success: true,
             files,
+            message: files.length === 0 ? 'No files available yet. Build and upload Anvil Solo installer.' : undefined,
         });
     } catch (error: any) {
+        console.error('List files error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to list files',

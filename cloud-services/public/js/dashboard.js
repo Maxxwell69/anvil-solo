@@ -199,15 +199,49 @@ async function loadDownloads() {
                     </div>
                 `;
             });
-        } else {
-            downloadsList.innerHTML = `
-                <div class="text-center py-12 bg-gray-50 rounded-lg">
-                    <i class="fas fa-download text-gray-300 text-5xl mb-4"></i>
-                    <h3 class="text-xl font-semibold text-gray-600 mb-2">No Downloads Available</h3>
-                    <p class="text-gray-500">Files will appear here once uploaded to the server</p>
-                </div>
-            `;
-        }
+            } else {
+                downloadsList.innerHTML = `
+                    <div class="text-center py-12 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-dashed border-purple-300">
+                        <i class="fas fa-cloud-upload-alt text-purple-300 text-6xl mb-4"></i>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-3">No Files Available Yet</h3>
+                        <p class="text-gray-600 mb-4 max-w-lg mx-auto">
+                            The installer hasn't been uploaded yet. Build and deploy it to make it available for download.
+                        </p>
+                        <div class="bg-white rounded-lg p-6 max-w-2xl mx-auto mt-6 text-left">
+                            <h4 class="font-bold text-lg mb-3 text-purple-600">
+                                <i class="fas fa-terminal mr-2"></i>To Add Downloads:
+                            </h4>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-start gap-3">
+                                    <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">1</span>
+                                    <div>
+                                        <strong>Build installer:</strong>
+                                        <code class="block bg-gray-100 p-2 rounded mt-1 text-xs">cd anvil-solo && BUILD-INSTALLER.bat</code>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">2</span>
+                                    <div>
+                                        <strong>Copy to downloads:</strong>
+                                        <code class="block bg-gray-100 p-2 rounded mt-1 text-xs">COPY-TO-DOWNLOADS.bat</code>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <span class="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">3</span>
+                                    <div>
+                                        <strong>Deploy to Railway:</strong>
+                                        <code class="block bg-gray-100 p-2 rounded mt-1 text-xs">cd cloud-services && git push</code>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-4 italic">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Check INSTALLER-READY.md for complete instructions
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
 
         // Load download history
         try {
