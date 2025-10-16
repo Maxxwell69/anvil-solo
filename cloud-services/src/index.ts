@@ -16,9 +16,9 @@ import feesRouter from './routes/fees.js';
 import authRouter from './routes/auth-simple.js';
 import adminSetupRouter from './routes/admin-setup.js';
 import adminSimpleRouter from './routes/admin-simple.js';
-import downloadsSimpleRouter from './routes/downloads-simple.js';
+import downloadsSimpleRouter, { ensureDownloadsTable } from './routes/downloads-simple.js';
 import syncSimpleRouter from './routes/sync-simple.js';
-import applicationRouter from './routes/application.js';
+import applicationRouter, { ensureApplicationsTable } from './routes/application.js';
 import { initDatabase } from './database/postgres-init.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,6 +66,10 @@ app.use(cookieParser());
 
 // Initialize database
 await initDatabase();
+
+// Initialize additional tables
+await ensureDownloadsTable();
+await ensureApplicationsTable();
 
 // Health check
 app.get('/health', (req, res) => {

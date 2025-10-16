@@ -185,22 +185,27 @@ router.get('/:fileId', async (req: Request, res: Response) => {
 });
 
 // Add downloads table if not exists
-async function ensureDownloadsTable() {
-    const sql = getDatabase();
-    await sql`
-        CREATE TABLE IF NOT EXISTS downloads (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER,
-            license_key TEXT,
-            file_name TEXT NOT NULL,
-            file_version TEXT,
-            file_size BIGINT,
-            ip_address TEXT,
-            user_agent TEXT,
-            status TEXT DEFAULT 'completed',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    `;
+export async function ensureDownloadsTable() {
+    try {
+        const sql = getDatabase();
+        await sql`
+            CREATE TABLE IF NOT EXISTS downloads (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                license_key TEXT,
+                file_name TEXT NOT NULL,
+                file_version TEXT,
+                file_size BIGINT,
+                ip_address TEXT,
+                user_agent TEXT,
+                status TEXT DEFAULT 'completed',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `;
+        console.log('✅ Downloads table ready');
+    } catch (err) {
+        console.error('Downloads table error:', err);
+    }
 }
 
 // Get download history for user
@@ -227,9 +232,6 @@ router.get('/history', async (req: Request, res: Response) => {
         });
     }
 });
-
-// Initialize on import
-ensureDownloadsTable().catch(err => console.error('Downloads table error:', err));
 
 export default router;
 
