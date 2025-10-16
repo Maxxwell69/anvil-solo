@@ -42,3 +42,4 @@ UPDATE license_tiers SET trade_fee_percentage = NULL WHERE tier_name IN ('free',
 CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings(setting_key);
 CREATE INDEX IF NOT EXISTS idx_users_fee_override ON users(fee_override_percentage);
 
+

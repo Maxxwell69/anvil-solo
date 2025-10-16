@@ -434,3 +434,4 @@ Users downloading Anvil Solo will:
 
 **Current status:** Waiting for Railway to deploy the database fix, then you can register and I'll help you become super_admin!
 
+

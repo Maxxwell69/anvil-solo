@@ -30,6 +30,12 @@ logs/
 # Railway
 .railway/
 
+# Downloads - large installer files
+public/downloads/*.zip
+public/downloads/*.exe
+public/downloads/*.dmg
+
+
 
 
 

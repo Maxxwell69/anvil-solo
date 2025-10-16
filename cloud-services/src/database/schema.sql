@@ -231,3 +231,4 @@ INSERT INTO system_settings (setting_key, setting_value, description, is_public)
 ('download_token_expiry_hours', '24', 'Download token expiry in hours', false)
 ON CONFLICT (setting_key) DO NOTHING;
 
+

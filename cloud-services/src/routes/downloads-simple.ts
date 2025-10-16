@@ -13,15 +13,15 @@ const router = Router();
 const AVAILABLE_FILES = [
     {
         id: 'windows-setup',
-        name: 'anvil-solo-setup.exe',
-        displayName: 'Anvil Solo - Windows Installer',
+        name: 'anvil-solo-setup.zip',
+        displayName: 'Anvil Solo - Windows Portable',
         version: '3.0.0',
-        size: 150000000,
-        description: 'Complete installer for Windows 10/11',
+        size: 126548069,
+        description: 'Portable version for Windows 10/11 - Extract and run!',
         platform: 'windows',
         requiresLicense: false, // Free tier can download
         minTier: 'free',
-        filepath: 'anvil-solo-setup.exe',
+        filepath: 'anvil-solo-setup.zip',
     },
     {
         id: 'windows-portable',

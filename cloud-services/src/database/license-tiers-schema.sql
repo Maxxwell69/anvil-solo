@@ -115,3 +115,4 @@ ON CONFLICT (tier_name) DO UPDATE SET
 -- Create index
 CREATE INDEX IF NOT EXISTS idx_license_tiers_active ON license_tiers(is_active);
 
+
