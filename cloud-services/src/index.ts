@@ -18,6 +18,7 @@ import adminSetupRouter from './routes/admin-setup.js';
 import adminSimpleRouter from './routes/admin-simple.js';
 import downloadsSimpleRouter from './routes/downloads-simple.js';
 import syncSimpleRouter from './routes/sync-simple.js';
+import applicationRouter from './routes/application.js';
 import { initDatabase } from './database/postgres-init.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.use('/api/admin-setup', adminSetupRouter);
 app.use('/api/admin', adminSimpleRouter); // Admin management endpoints
 app.use('/api/auth', authRouter);
+app.use('/api/application', applicationRouter); // User application/approval system
 app.use('/api/downloads', downloadsSimpleRouter); // File downloads
 app.use('/api/sync', syncSimpleRouter); // Cloud sync
 app.use('/api/license', licenseRouter);
