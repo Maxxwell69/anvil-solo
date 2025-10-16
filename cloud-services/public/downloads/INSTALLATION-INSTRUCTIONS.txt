@@ -1,0 +1,118 @@
+================================================================================
+                    ANVIL SOLO - INSTALLATION INSTRUCTIONS
+================================================================================
+
+QUICK INSTALL (3 Steps):
+========================
+
+1. EXTRACT THE ZIP FILE
+   - Right-click "anvil-solo-setup.zip"
+   - Click "Extract All..."
+   - Choose a location (e.g., C:\Program Files\Anvil Solo)
+   - Click "Extract"
+
+2. RUN THE APP
+   - Open the extracted folder
+   - Find "Anvil Solo.exe"
+   - Double-click to run
+   
+3. CREATE SHORTCUT (Optional)
+   - Right-click "Anvil Solo.exe"
+   - Click "Create shortcut"
+   - Drag shortcut to Desktop
+
+================================================================================
+
+WHAT YOU GET:
+=============
+
+Anvil Solo Trading Bot includes:
+✓ DCA (Dollar Cost Averaging) automation
+✓ Ratio trading for volume generation
+✓ Bundle trading with multiple wallets
+✓ Jupiter DEX integration
+✓ Local wallet encryption
+✓ Strategy management
+✓ Transaction history
+
+================================================================================
+
+FIRST TIME SETUP:
+=================
+
+When you launch Anvil Solo:
+
+1. Create or Import Wallet
+   - Choose "Create New Wallet" or "Import Existing"
+   - Set a strong password
+   - SAVE YOUR SEED PHRASE (write it down!)
+
+2. Fund Your Wallet
+   - Copy your wallet address
+   - Send SOL from an exchange
+   - Wait for confirmation
+
+3. Start Trading
+   - Create a strategy (DCA, Ratio, or Bundle)
+   - Configure your settings
+   - Click "Start"
+
+================================================================================
+
+SYSTEM REQUIREMENTS:
+====================
+
+- Windows 10 or 11 (64-bit)
+- 4 GB RAM (8 GB recommended)
+- 500 MB disk space
+- Internet connection
+
+================================================================================
+
+TROUBLESHOOTING:
+================
+
+"Windows protected your PC" message:
+  → Click "More info"
+  → Click "Run anyway"
+  → This is normal for unsigned apps
+
+App won't start:
+  → Right-click "Anvil Solo.exe"
+  → Click "Run as administrator"
+
+Antivirus blocking:
+  → Add Anvil Solo folder to antivirus exceptions
+  → This is a false positive
+
+================================================================================
+
+PORTABLE VERSION:
+=================
+
+This is a PORTABLE version - no installation required!
+
+You can:
+  ✓ Run from USB drive
+  ✓ Move folder anywhere
+  ✓ Run multiple copies
+  ✓ No registry entries
+  ✓ Easy to uninstall (just delete folder)
+
+Your data is stored in:
+  C:\Users\[YourName]\AppData\Roaming\anvil-solo\
+
+================================================================================
+
+SUPPORT:
+========
+
+Email: support@anvil-labs.com
+Dashboard: https://anvil-solo-production.up.railway.app
+
+================================================================================
+
+ENJOY TRADING! 🚀
+
+================================================================================
+

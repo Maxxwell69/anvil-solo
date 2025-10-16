@@ -216,3 +216,4 @@ You can:
 **Wait for Railway deployment, then you can set each tier's fee separately in the admin panel!** 🚀
 
 The CSP errors should be gone and all buttons should work! Let me know once deployed!
+
