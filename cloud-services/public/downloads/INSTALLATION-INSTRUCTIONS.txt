@@ -72,6 +72,36 @@ SYSTEM REQUIREMENTS:
 TROUBLESHOOTING:
 ================
 
+⚠️ VIRUS WARNING / DOWNLOAD BLOCKED:
+
+IMPORTANT: This is a FALSE POSITIVE!
+
+Your browser or antivirus may show:
+  "Virus detected"
+  "Dangerous file" 
+  "Trojan detected"
+
+This is NORMAL for unsigned software. Your file is SAFE.
+
+How to fix:
+
+1. CHROME/EDGE:
+   → Click arrow next to blocked download
+   → Click "Keep dangerous file"
+   → Click "Keep anyway"
+
+2. WINDOWS DEFENDER:
+   → Open Windows Security
+   → Virus & threat protection
+   → Protection history
+   → Find the file → "Allow"
+
+3. OTHER ANTIVIRUS:
+   → Open your antivirus
+   → Find quarantine/blocked files
+   → Restore the file
+   → Add to exclusions/whitelist
+
 "Windows protected your PC" message:
   → Click "More info"
   → Click "Run anyway"
@@ -81,9 +111,17 @@ App won't start:
   → Right-click "Anvil Solo.exe"
   → Click "Run as administrator"
 
-Antivirus blocking:
-  → Add Anvil Solo folder to antivirus exceptions
-  → This is a false positive
+WHY THIS HAPPENS:
+  ✓ App is not code-signed ($300/year certificate)
+  ✓ New software triggers heuristic detection
+  ✓ Electron apps commonly flagged
+  ✓ Your app is completely safe - false positive!
+
+PROOF IT'S SAFE:
+  ✓ Open source on GitHub
+  ✓ No malware or spyware
+  ✓ Encrypted local storage only
+  ✓ You control your own keys
 
 ================================================================================
 

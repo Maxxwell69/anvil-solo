@@ -195,8 +195,19 @@
         </div>
         
         <div class="warning">
-            <p><strong>⚠️ Security Note:</strong></p>
-            <p>If Windows shows "Windows protected your PC", click "More info" then "Run anyway". This is normal for unsigned software.</p>
+            <p><strong>⚠️ Expected Security Warnings:</strong></p>
+            <p style="margin: 10px 0;">
+                <strong>You WILL see virus warnings - This is a FALSE POSITIVE (your file is safe!):</strong>
+            </p>
+            <ul style="margin: 10px 0 10px 20px; line-height: 1.8; list-style: disc; color: #856404;">
+                <li><strong>Browser:</strong> "Virus detected" → Click "Keep anyway"</li>
+                <li><strong>Windows:</strong> "Protected your PC" → Click "More info" → "Run anyway"</li>
+                <li><strong>Antivirus:</strong> May quarantine → Restore and whitelist</li>
+            </ul>
+            <p style="margin: 10px 0; font-size: 13px;">
+                <strong>Why:</strong> App isn't code-signed ($300/year). Common for indie software.
+                <br><strong>Safe:</strong> Open source, encrypted storage, no malware.
+            </p>
         </div>
         
         <div style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
