@@ -20,16 +20,20 @@ if exist "dist" rmdir /s /q dist
 if exist "release" rmdir /s /q release
 echo       ✓ Cleaned
 
-REM Step 2: Install dependencies
+REM Step 2: Install dependencies (skip if already exists)
 echo.
 echo [2/4] Installing dependencies...
-call npm install
-if %errorlevel% neq 0 (
-    echo       ✗ Failed to install dependencies
-    pause
-    exit /b 1
+if not exist "node_modules" (
+    call npm install --ignore-scripts
+    if %errorlevel% neq 0 (
+        echo       ✗ Failed to install dependencies
+        pause
+        exit /b 1
+    )
+    echo       ✓ Dependencies installed
+) else (
+    echo       ✓ Dependencies already installed
 )
-echo       ✓ Dependencies installed
 
 REM Step 3: Build TypeScript
 echo.

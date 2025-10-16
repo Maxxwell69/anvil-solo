@@ -71,6 +71,24 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.invoke('license:getHwid'),
   },
 
+  // DevTools
+  openDevTools: () => 
+    ipcRenderer.invoke('devtools:open'),
+
+  // IPC Renderer for activity updates
+  ipcRenderer: {
+    on: (channel: string, callback: (event: any, ...args: any[]) => void) => 
+      ipcRenderer.on(channel, callback),
+    send: (channel: string, ...args: any[]) => 
+      ipcRenderer.send(channel, ...args),
+  },
+
+  // Fee Management
+  fees: {
+    updateConfig: (config: any) => 
+      ipcRenderer.invoke('fees:updateConfig', config),
+  },
+
   // Auto-updater operations
   updater: {
     checkForUpdates: () => 
@@ -244,6 +262,14 @@ declare global {
       };
       stats: {
         getDashboard: () => Promise<any>;
+      };
+      fees: {
+        updateConfig: (config: any) => Promise<any>;
+      };
+      openDevTools: () => Promise<any>;
+      ipcRenderer: {
+        on: (channel: string, callback: (event: any, ...args: any[]) => void) => void;
+        send: (channel: string, ...args: any[]) => void;
       };
     };
   }

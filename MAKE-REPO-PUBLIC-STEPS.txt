@@ -1,0 +1,159 @@
+================================================================================
+              MAKE GITHUB REPO PUBLIC - FIX USER DOWNLOADS
+================================================================================
+
+PROBLEM: Users get 404 when trying to download (only admin works)
+REASON:  Your GitHub repo is PRIVATE
+FIX:     Make it PUBLIC (2 minutes)
+
+================================================================================
+                            QUICK STEPS
+================================================================================
+
+1. GO TO SETTINGS:
+   https://github.com/Maxxwell69/anvil-solo/settings
+
+2. SCROLL TO BOTTOM
+   Find "Danger Zone" (red box)
+
+3. CLICK "Change repository visibility"
+
+4. SELECT "Make public"
+   (Radio button)
+
+5. TYPE TO CONFIRM:
+   anvil-solo
+
+6. CLICK:
+   "I understand, make this repository public"
+
+DONE! Repo is now public!
+
+================================================================================
+                        THEN UPLOAD RELEASE
+================================================================================
+
+7. GO TO RELEASES:
+   https://github.com/Maxxwell69/anvil-solo/releases/new?tag=v3.0.0
+
+8. FILL IN:
+   Title: Anvil Solo v3.0.0
+   Description: Professional Solana Trading Bot
+
+9. UPLOAD FILE:
+   Drag: anvil-solo\anvil-solo-portable.zip (127 MB)
+
+10. CLICK:
+    "Publish release"
+
+DONE! All users can now download!
+
+================================================================================
+                        WHAT HAPPENS
+================================================================================
+
+BEFORE (Private Repo):
+  Admin: Can download ✅
+  Users: 404 error ❌
+
+AFTER (Public Repo):
+  Admin: Can download ✅
+  Users: Can download ✅
+
+Everyone can access the release files!
+
+================================================================================
+                        IS IT SAFE?
+================================================================================
+
+YES! Making the repo public is SAFE because:
+
+✅ License system protects your revenue (not code hiding)
+✅ API keys are on Railway (not in code)
+✅ Database is private (on Railway)  
+✅ Users still need license for premium features
+✅ Standard practice (VS Code, Slack, Discord all public)
+
+What gets public:
+  - Source code (TypeScript)
+  - Documentation
+  - Build scripts
+
+What stays private:
+  - Your Railway servers
+  - API keys (env vars)
+  - Database
+  - User data
+  - Admin access
+
+================================================================================
+                        ALTERNATIVE
+================================================================================
+
+If you want to keep repo PRIVATE, you have 2 options:
+
+Option A: Use Google Drive
+  - Upload file to Google Drive
+  - Share public link
+  - Update dashboard to use Drive link
+  - Limited downloads, not professional
+
+Option B: Use Cloudflare R2 (Free CDN)
+  - Create R2 bucket
+  - Upload file there
+  - Update dashboard to use R2 link
+  - Professional, unlimited downloads
+
+RECOMMENDED: Make GitHub public (easiest and best!)
+
+================================================================================
+                        AFTER MAKING PUBLIC
+================================================================================
+
+Test immediately:
+
+1. Logout of GitHub (or use incognito)
+2. Visit: github.com/Maxxwell69/anvil-solo/releases/tag/v3.0.0
+3. Click download
+4. Should download WITHOUT login ✅
+
+Then test from dashboard:
+1. Login as regular user
+2. Go to Downloads tab
+3. Click Download
+4. Should work! ✅
+
+================================================================================
+                        VIRUS WARNINGS
+================================================================================
+
+Users WILL see virus warnings because app is UNSIGNED.
+
+I've updated download pages with instructions:
+  ✓ "This is a false positive"
+  ✓ How to allow download
+  ✓ How to whitelist in antivirus
+
+This is NORMAL for unsigned software!
+
+To fix properly: Buy code signing certificate ($300/year)
+
+For now: Tell users to allow/whitelist (already documented)
+
+================================================================================
+
+DO THIS NOW:
+  1. Make repo public (2 min)
+  2. Upload release (3 min)
+  3. Test download (instant)
+
+Total time: 5 minutes
+Result: All users can download!
+
+================================================================================
+
+Read: MAKE-GITHUB-PUBLIC-NOW.md for detailed explanation
+Read: VIRUS-FALSE-POSITIVE-EXPLAINED.md for virus warning info
+
+================================================================================
+

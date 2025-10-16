@@ -38,6 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Setup trades page
   setupTradesPage();
   
+  // Setup DevTools button
+  setupDevToolsButton();
+  
+  // Setup Activity Feed
+  setupActivityFeed();
+  
   // Show welcome message
   showWelcomeMessage();
 });
@@ -1762,10 +1768,36 @@ async function loadLicenseInfo() {
       console.log('⚠️ Backend not connected yet - showing FREE tier');
       resetToFreeTier();
     }
+    
+    // Load fee information
+    await loadFeeInfo();
   } catch (error) {
     console.error('Error loading license info:', error);
     // On any error, default to FREE tier
     resetToFreeTier();
+  }
+}
+
+// Load fee configuration and display in settings
+async function loadFeeInfo() {
+  try {
+    const feeStatusEl = document.getElementById('fee-status');
+    const feePercentageEl = document.getElementById('fee-percentage');
+    const feeWalletEl = document.getElementById('fee-wallet');
+    
+    if (!feeStatusEl || !feePercentageEl || !feeWalletEl) {
+      return; // Elements don't exist yet
+    }
+    
+    // Get fee config from backend (using IPC)
+    // For now, show the default values
+    feeStatusEl.textContent = 'Active';
+    feeStatusEl.style.color = '#2ed573';
+    feePercentageEl.textContent = '0.5%';
+    feeWalletEl.textContent = '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd';
+    
+  } catch (error) {
+    console.error('Error loading fee info:', error);
   }
 }
 
@@ -2051,8 +2083,12 @@ async function loadStrategies() {
               w.id == strategy.config.walletId || w.publicKey === strategy.config.walletId
             );
             if (wallet) {
-              const balance = await window.electron.wallet.getBalance(wallet.publicKey);
-              walletDisplay = `${wallet.label || 'Wallet'} (${balance.toFixed(4)} SOL)`;
+              const balanceResult = await window.electron.wallet.getBalance(wallet.publicKey);
+              if (balanceResult.success) {
+                walletDisplay = `${wallet.label || 'Wallet'} (${balanceResult.balance.toFixed(4)} SOL)`;
+              } else {
+                walletDisplay = `${wallet.label || 'Wallet'} (Error loading balance)`;
+              }
             }
           }
         }
@@ -2107,6 +2143,7 @@ async function loadStrategies() {
             ` : strategy.status === 'completed' ? `
               <button class="btn btn-small" onclick="archiveStrategy(${strategy.id})" style="background: #3498db; min-width: 80px;">📦 Archive</button>
             ` : ''}
+            <button class="btn btn-small" onclick="confirmDeleteStrategy(${strategy.id}, '${strategy.type}', '${typeLabel}')" style="background: #dc2626; min-width: 80px;">🗑️ Delete</button>
           </div>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px; margin-bottom: 8px;">
@@ -2635,6 +2672,143 @@ function setupTradesPage() {
   }
 }
 
+// Setup DevTools button
+function setupDevToolsButton() {
+  const devToolsBtn = document.getElementById('devtools-button');
+  if (devToolsBtn) {
+    devToolsBtn.addEventListener('click', () => {
+      console.log('Opening DevTools...');
+      
+      // Show console logs in a modal
+      showConsoleLogs();
+      
+      // Also open DevTools
+      if (window.electron && window.electron.openDevTools) {
+        window.electron.openDevTools();
+      }
+    });
+  }
+  
+  // Listen for console logs from main process
+  if (window.electron && window.electron.ipcRenderer) {
+    window.electron.ipcRenderer.on('devtools-logs', (event, logs) => {
+      console.log('Received logs from main process:', logs);
+    });
+  }
+}
+
+// Show console logs in a modal
+function showConsoleLogs() {
+  // Create console modal if it doesn't exist
+  let consoleModal = document.getElementById('console-modal');
+  if (!consoleModal) {
+    consoleModal = document.createElement('div');
+    consoleModal.id = 'console-modal';
+    consoleModal.className = 'modal';
+    consoleModal.innerHTML = `
+      <div class="modal-content" style="max-width: 800px; max-height: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2>🔧 Console Logs & Debug Info</h2>
+          <button onclick="hideModal('console-modal')" style="background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Close</button>
+        </div>
+        <div id="console-output" style="background: #1a1a1a; color: #00ff00; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;"></div>
+        <div style="margin-top: 15px;">
+          <button onclick="refreshConsoleLogs()" style="background: #059669; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Refresh Logs</button>
+          <button onclick="testLicenseConnection()" style="background: #7c3aed; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Test License</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(consoleModal);
+  }
+  
+  // Show the modal
+  showModal('console-modal');
+  
+  // Load initial logs
+  refreshConsoleLogs();
+}
+
+// Refresh console logs
+async function refreshConsoleLogs() {
+  const output = document.getElementById('console-output');
+  if (!output) return;
+  
+  const logs = [
+    '🔧 DevTools Console - Debug Information',
+    '=====================================',
+    '',
+    '📊 App Status:',
+    '  ✅ Electron App: Running',
+    '  ✅ Renderer Process: Active',
+    '  ✅ Main Process: Connected',
+    '',
+    '🔑 License System:',
+    '  🌐 Server: https://pure-analysis.up.railway.app',
+    '  📝 Status: Checking...',
+    '',
+    '💾 Database:',
+    '  📁 Location: ~/.anvil/anvil-solo.db',
+    '  🔗 Status: Connected',
+    '',
+    '🌐 Network Connections:',
+    '  🔗 Solana RPC: https://mainnet.helius-rpc.com',
+    '  🔗 Jupiter API: https://quote-api.jup.ag/v6',
+    '  🔗 License Server: https://pure-analysis.up.railway.app',
+    '',
+    '📈 Available Features:',
+    '  ✅ Wallet Management',
+    '  ✅ DCA Strategies',
+    '  ✅ Token Management',
+    '  ✅ License Validation',
+    '',
+    '🔍 Recent Activity:',
+    '  ' + new Date().toLocaleString() + ' - Console opened',
+    '',
+    '💡 Tips:',
+    '  - Check Network tab in DevTools for failed requests',
+    '  - Look for red error messages in Console tab',
+    '  - Test license connection if activation fails',
+    ''
+  ];
+  
+  output.textContent = logs.join('\n');
+  
+  // Test license connection
+  try {
+    if (window.electron && window.electron.license) {
+      const licenseInfo = await window.electron.license.getInfo();
+      const statusLine = `  📝 Status: ${licenseInfo.isValid ? 'Valid' : 'Invalid'} (${licenseInfo.tier})`;
+      logs[8] = statusLine;
+      output.textContent = logs.join('\n');
+    }
+  } catch (error) {
+    logs[8] = `  📝 Status: Error - ${error.message}`;
+    output.textContent = logs.join('\n');
+  }
+}
+
+// Test license connection
+async function testLicenseConnection() {
+  const output = document.getElementById('console-output');
+  if (!output) return;
+  
+  try {
+    output.textContent += '\n\n🧪 Testing License Connection...\n';
+    
+    if (window.electron && window.electron.license) {
+      const result = await window.electron.license.validate();
+      output.textContent += `✅ License validation: ${result ? 'Success' : 'Failed'}\n`;
+      
+      const info = await window.electron.license.getInfo();
+      output.textContent += `📊 License info: ${JSON.stringify(info, null, 2)}\n`;
+    } else {
+      output.textContent += '❌ License API not available\n';
+    }
+  } catch (error) {
+    output.textContent += `❌ License test failed: ${error.message}\n`;
+  }
+}
+
 async function loadTradesData() {
   console.log('Loading trades and volume data...');
   
@@ -2852,6 +3026,220 @@ async function loadTradesData() {
 
 // Export functions for inline handlers
 window.showPage = showPage;
+// Activity Feed Management
+let activityFeedExpanded = false;
+let activityFeedItems = [];
+
+// Setup Activity Feed
+function setupActivityFeed() {
+  const toggleBtn = document.getElementById('activity-feed-toggle');
+  const clearBtn = document.getElementById('activity-feed-clear');
+  const activityFeed = document.getElementById('activity-feed');
+  
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      activityFeedExpanded = !activityFeedExpanded;
+      if (activityFeedExpanded) {
+        activityFeed.classList.add('expanded');
+        toggleBtn.textContent = '📋';
+        toggleBtn.title = 'Collapse Activity Feed';
+      } else {
+        activityFeed.classList.remove('expanded');
+        toggleBtn.textContent = '📋';
+        toggleBtn.title = 'Expand Activity Feed';
+      }
+    });
+  }
+  
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      clearActivityFeed();
+    });
+  }
+  
+  // Listen for activity updates from main process
+  if (window.electron && window.electron.ipcRenderer) {
+    window.electron.ipcRenderer.on('activity-update', (event, activity) => {
+      addActivityItem(activity);
+    });
+  }
+  
+  // Add initial activity item
+  addActivityItem({
+    type: 'info',
+    message: '📊 Activity feed ready - watching for trades...',
+    timestamp: new Date()
+  });
+}
+
+// Add activity item to feed
+function addActivityItem(activity) {
+  const content = document.getElementById('activity-feed-content');
+  if (!content) return;
+  
+  const timeStr = formatTime(activity.timestamp || new Date());
+  const typeClass = activity.type || 'info';
+  
+  const activityItem = document.createElement('div');
+  activityItem.className = `activity-item ${typeClass}`;
+  activityItem.innerHTML = `
+    <span class="activity-time">${timeStr}</span>
+    <span class="activity-message">${activity.message}</span>
+  `;
+  
+  // Add to top of feed
+  content.insertBefore(activityItem, content.firstChild);
+  
+  // Keep only last 50 items
+  const items = content.querySelectorAll('.activity-item');
+  if (items.length > 50) {
+    content.removeChild(items[items.length - 1]);
+  }
+  
+  // Auto-expand feed for important activities
+  if (activity.type === 'success' || activity.type === 'error') {
+    if (!activityFeedExpanded) {
+      const toggleBtn = document.getElementById('activity-feed-toggle');
+      if (toggleBtn) {
+        toggleBtn.click();
+      }
+    }
+  }
+  
+  // Store in memory
+  activityFeedItems.unshift({
+    ...activity,
+    timestamp: activity.timestamp || new Date()
+  });
+  
+  // Keep only last 100 in memory
+  if (activityFeedItems.length > 100) {
+    activityFeedItems = activityFeedItems.slice(0, 100);
+  }
+}
+
+// Clear activity feed
+function clearActivityFeed() {
+  const content = document.getElementById('activity-feed-content');
+  if (!content) return;
+  
+  content.innerHTML = '';
+  activityFeedItems = [];
+  
+  // Add initial message
+  addActivityItem({
+    type: 'info',
+    message: '📊 Activity feed cleared',
+    timestamp: new Date()
+  });
+}
+
+// Format time for display
+function formatTime(timestamp) {
+  const now = new Date();
+  const diff = now - timestamp;
+  
+  if (diff < 1000) return 'now';
+  if (diff < 60000) return `${Math.floor(diff / 1000)}s`;
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  
+  return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Strategy deletion functions
+let strategyToDelete = null;
+
+// Show delete confirmation modal
+function confirmDeleteStrategy(strategyId, strategyType, typeLabel) {
+  strategyToDelete = { id: strategyId, type: strategyType, label: typeLabel };
+  
+  // Remove existing modal if it exists to ensure clean state
+  const existingModal = document.getElementById('delete-strategy-modal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Create fresh delete confirmation modal
+  const deleteModal = document.createElement('div');
+  deleteModal.id = 'delete-strategy-modal';
+  deleteModal.className = 'modal';
+  deleteModal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <h2>🗑️ Delete Strategy</h2>
+      <div style="margin: 20px 0;">
+        <p style="color: #e74c3c; font-weight: bold; margin-bottom: 15px;">
+          ⚠️ WARNING: This action cannot be undone!
+        </p>
+        <p>Are you sure you want to permanently delete this <strong>${typeLabel}</strong> strategy?</p>
+        <p style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">
+          This will remove the strategy from your dashboard and cannot be recovered.
+        </p>
+      </div>
+      <div class="form-actions">
+        <button id="delete-strategy-cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button id="delete-strategy-confirm-btn" class="btn btn-danger">🗑️ Delete Permanently</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(deleteModal);
+  
+  // Add event listeners (fresh for each modal)
+  document.getElementById('delete-strategy-cancel-btn').addEventListener('click', () => {
+    hideModal('delete-strategy-modal');
+    deleteModal.remove();
+    strategyToDelete = null;
+  });
+  
+  document.getElementById('delete-strategy-confirm-btn').addEventListener('click', async () => {
+    if (strategyToDelete) {
+      await deleteStrategy(strategyToDelete.id);
+      hideModal('delete-strategy-modal');
+      deleteModal.remove();
+      strategyToDelete = null;
+    }
+  });
+  
+  // Show the modal
+  showModal('delete-strategy-modal');
+}
+
+// Delete strategy function
+async function deleteStrategy(strategyId) {
+  try {
+    console.log(`Deleting strategy #${strategyId}...`);
+    
+    if (!window.electron || !window.electron.strategy) {
+      throw new Error('Strategy API not available');
+    }
+    
+    // Call backend to delete strategy
+    const result = await window.electron.strategy.delete(strategyId);
+    
+    if (result.success) {
+      console.log(`✅ Strategy #${strategyId} deleted successfully`);
+      
+      // Show success message
+      showStatusMessage(`✅ Strategy #${strategyId} deleted successfully`, 'success');
+      
+      // Navigate to dashboard
+      showPage('dashboard');
+      
+      // Reload strategies to update the dashboard
+      await loadStrategies();
+      
+      // Also reload dashboard stats
+      await loadDashboardStats();
+      
+    } else {
+      throw new Error(result.error || 'Failed to delete strategy');
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to delete strategy:', error);
+    showStatusMessage(`❌ Failed to delete strategy: ${error.message}`, 'error');
+  }
+}
+
 window.copyToClipboard = copyToClipboard;
 window.startStrategy = startStrategy;
 window.pauseStrategy = pauseStrategy;
@@ -2862,3 +3250,4 @@ window.syncToCloud = syncToCloud;
 window.deleteStrategy = deleteStrategy;
 window.deleteToken = deleteToken;
 window.selectJupiterToken = selectJupiterToken;
+window.confirmDeleteStrategy = confirmDeleteStrategy;

@@ -1,0 +1,60 @@
+========================================
+   ANVIL SOLO - SIMPLE INSTALLATION
+========================================
+
+3 EASY STEPS:
+
+1. DOWNLOAD
+   Get the installer file (about 150 MB)
+   File name: Anvil-Solo-Setup-3.0.0.exe
+
+2. RUN INSTALLER
+   - Double-click the installer
+   - Click "Yes" when Windows asks permission
+   - Follow the wizard (Next → Next → Install)
+   - Takes 1-2 minutes
+
+3. LAUNCH
+   - Click "Finish" 
+   - App opens automatically!
+   - Or use desktop shortcut anytime
+
+========================================
+
+FIRST TIME SETUP:
+1. Create a wallet or import existing one
+2. Fund wallet with SOL (from exchange)
+3. Create your first trading strategy
+4. Click "Start" - you're trading!
+
+========================================
+
+SYSTEM REQUIREMENTS:
+- Windows 10 or 11
+- 4 GB RAM (8 GB recommended)
+- 500 MB disk space
+- Internet connection
+
+========================================
+
+SECURITY NOTES:
+
+IF YOU SEE "Windows protected your PC":
+→ Click "More info"
+→ Click "Run anyway"
+→ This is normal for new software
+
+Your wallet keys stay on YOUR computer.
+Nothing is uploaded without your permission.
+
+========================================
+
+NEED HELP?
+Email: support@anvil-labs.com
+Dashboard: anvil-solo-production.up.railway.app
+
+========================================
+
+THAT'S IT! 
+Simple download → Install → Trade 🚀
+

@@ -1,0 +1,114 @@
+================================================================================
+                CREATE PROFESSIONAL INSTALLER - FIXED!
+================================================================================
+
+The build script is now fixed to work when run as administrator.
+
+================================================================================
+                        HOW TO BUILD INSTALLER
+================================================================================
+
+STEP 1: Right-click on this file:
+  BUILD-PROPER-INSTALLER.bat
+
+STEP 2: Select:
+  "Run as administrator"
+
+STEP 3: Click "Yes" when Windows asks
+
+STEP 4: Wait 3-5 minutes while it builds
+
+STEP 5: Done! You'll get:
+  anvil-solo\release\Anvil-Solo-Setup-3.1.1.exe
+
+================================================================================
+                    WHAT USERS GET
+================================================================================
+
+When users download and run the installer:
+
+1. Double-click: Anvil-Solo-Setup-3.1.1.exe
+
+2. Setup Wizard appears:
+   - Welcome screen
+   - License agreement
+   - Choose install location
+   - Select components (desktop shortcut ✓)
+   - Installing... (progress bar)
+   - Finish (app launches!)
+
+3. Automatically created:
+   ✅ Desktop shortcut "Anvil Solo"
+   ✅ Start Menu entry
+   ✅ Installed to C:\Program Files\Anvil Solo
+   ✅ Uninstaller in Control Panel
+   ✅ Windows integration
+
+4. App opens and ready to use!
+
+================================================================================
+                    AFTER BUILDING
+================================================================================
+
+Upload the .exe installer to GitHub:
+
+1. Go to: https://github.com/Maxxwell69/anvil-solo/releases/tag/3.1.1
+
+2. Click "Edit" (pencil icon)
+
+3. Delete old zip file (if there)
+
+4. Upload new file:
+   anvil-solo\release\Anvil-Solo-Setup-3.1.1.exe
+
+5. Rename to: Anvil-Solo-Setup.exe (when uploading)
+
+6. Click "Update release"
+
+================================================================================
+                    UPDATE DASHBOARD
+================================================================================
+
+After uploading installer to GitHub, I'll update the dashboard to point to:
+
+  https://github.com/Maxxwell69/anvil-solo/releases/download/3.1.1/Anvil-Solo-Setup.exe
+
+Instead of the portable zip.
+
+================================================================================
+                    COMPARISON
+================================================================================
+
+PORTABLE (What you have now):
+  - User downloads zip
+  - User extracts manually
+  - User finds .exe and runs
+  - No shortcuts created
+  - Works but not professional
+
+INSTALLER (What you're building):
+  - User downloads .exe installer  
+  - User runs installer
+  - Wizard installs everything
+  - Desktop shortcut created ✅
+  - Start Menu entry created ✅
+  - Professional experience ✅
+
+================================================================================
+                    TRY NOW
+================================================================================
+
+Right-click: BUILD-PROPER-INSTALLER.bat
+Select: "Run as administrator"
+Click: "Yes"
+Wait: 3-5 minutes
+Get: Professional installer!
+
+================================================================================
+
+The script is fixed and ready to use!
+
+Just right-click and "Run as administrator" 🚀
+
+================================================================================
+

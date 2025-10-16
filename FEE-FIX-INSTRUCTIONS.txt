@@ -1,0 +1,81 @@
+================================================================================
+  🔧 FEE DATABASE FIX - IMMEDIATE ACTION REQUIRED
+================================================================================
+
+PROBLEM CONFIRMED:
+  - Fee wallet has NO transactions
+  - Your database is missing fee settings
+  - Fee collection is NOT working
+
+IMMEDIATE FIX (2 minutes):
+================================================================================
+
+STEP 1: Close Anvil Solo
+  - Close the application completely
+  - Make sure "Anvil Solo.exe" is not running in Task Manager
+
+STEP 2: Run the Fix Script
+  - Double-click: RUN-FEE-DATABASE-FIX.bat
+  - Wait for "✅ DATABASE UPDATED SUCCESSFULLY!"
+  - Press any key to close
+
+STEP 3: Verify the Fix
+  - Start Anvil Solo
+  - Press F12 (open console)
+  - Look for these messages:
+    ✅ Fee settings verified - all present
+  
+STEP 4: Test with a Trade
+  - Create a small DCA trade (0.01 SOL)
+  - Watch the console for:
+    💰 Collecting 0.5% fee: 0.00005 SOL
+    ✅ Fee collected: [transaction hash]
+  
+STEP 5: Verify on Solscan
+  - Go to: https://solscan.io/account/82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd
+  - Refresh the page
+  - Look for a small SOL transfer from your wallet
+
+================================================================================
+
+ALTERNATIVE METHOD (if script fails):
+================================================================================
+
+Use DevTools Console:
+  1. Open Anvil Solo
+  2. Press F12
+  3. Click "Console" tab
+  4. Type this EXACTLY:
+     
+     window.electron.fees.updateConfig({feeEnabled: true, feePercentage: 0.5, feeWalletAddress: '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd'});
+  
+  5. Press Enter
+  6. You should see: {success: true}
+  7. Restart Anvil Solo
+
+================================================================================
+
+WHY THIS HAPPENED:
+  - v3.1.1 installer didn't include fee settings in database
+  - v3.1.2 includes automatic fix for all new users
+  - You need manual fix for your current installation
+  - OR install v3.1.2 (in anvil-solo\release\ folder)
+
+================================================================================
+
+AFTER FIX WORKS:
+  - All new users will get automatic fee collection
+  - You can upload v3.1.2 to GitHub
+  - No more manual fixes needed
+
+================================================================================
+
+⚡ ACTION REQUIRED NOW:
+  1. Close Anvil Solo
+  2. Run: RUN-FEE-DATABASE-FIX.bat
+  3. Restart Anvil Solo
+  4. Test a trade
+  5. Verify fee on Solscan
+
+================================================================================
+

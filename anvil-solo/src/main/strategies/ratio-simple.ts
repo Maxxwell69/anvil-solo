@@ -2,6 +2,7 @@ import { JupiterClient } from '../jupiter/client';
 import { WalletManager } from '../wallet/manager';
 import { getDatabase } from '../database/schema';
 import { Keypair } from '@solana/web3.js';
+import { FeeManager } from '../fees/manager';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -51,6 +52,7 @@ export class RatioSimpleStrategy {
   private config: RatioSimpleConfig;
   private jupiter: JupiterClient;
   private wallet: WalletManager;
+  private feeManager: FeeManager;
   private intervalId: NodeJS.Timeout | null = null;
   private progress: RatioSimpleProgress;
   private isRunning: boolean = false;
@@ -59,12 +61,14 @@ export class RatioSimpleStrategy {
     strategyId: number,
     config: RatioSimpleConfig,
     jupiter: JupiterClient,
-    wallet: WalletManager
+    wallet: WalletManager,
+    feeManager: FeeManager
   ) {
     this.strategyId = strategyId;
     this.config = config;
     this.jupiter = jupiter;
     this.wallet = wallet;
+    this.feeManager = feeManager;
     this.progress = {
       currentCycle: 0,
       tradesInCycle: 0,
@@ -162,6 +166,31 @@ export class RatioSimpleStrategy {
         userKeypair: keypair,
         priorityFeeLamports: this.config.priorityFeeLamports,
       });
+
+      // Collect transaction fee
+      try {
+        const feeConfig = this.feeManager.getFeeConfig();
+        if (feeConfig.feeEnabled && feeConfig.feeWalletAddress) {
+          const tradeAmountSOL = this.config.initialSolPerTrade;
+          const feeAmountSOL = this.feeManager.calculateFee(tradeAmountSOL, feeConfig.feePercentage);
+          const feeAmountLamports = Math.floor(feeAmountSOL * 1e9);
+          
+          if (feeAmountLamports > 0) {
+            console.log(`   💰 Collecting ${feeConfig.feePercentage}% fee: ${feeAmountSOL.toFixed(6)} SOL`);
+            const feeResult = await this.feeManager.transferFee({
+              fromKeypair: keypair,
+              feeAmount: feeAmountLamports,
+              strategyId: this.strategyId,
+            });
+            
+            if (feeResult.success && feeResult.signature) {
+              console.log(`   ✅ Fee collected: ${feeResult.signature}`);
+            }
+          }
+        }
+      } catch (feeError: any) {
+        console.error(`   ⚠️ Fee collection failed (trade still successful):`, feeError.message);
+      }
 
       // Calculate token amount received
       const tokensReceived = Number(quote.outAmount) / Math.pow(10, tokenInfo.decimals);
@@ -261,6 +290,31 @@ export class RatioSimpleStrategy {
       const solAmount = isBuy 
         ? Number(quote.inAmount) / Math.pow(10, 9)
         : Number(quote.outAmount) / Math.pow(10, 9);
+
+      // Collect transaction fee
+      try {
+        const feeConfig = this.feeManager.getFeeConfig();
+        if (feeConfig.feeEnabled && feeConfig.feeWalletAddress) {
+          const tradeAmountSOL = solAmount;
+          const feeAmountSOL = this.feeManager.calculateFee(tradeAmountSOL, feeConfig.feePercentage);
+          const feeAmountLamports = Math.floor(feeAmountSOL * 1e9);
+          
+          if (feeAmountLamports > 0) {
+            console.log(`   💰 Collecting ${feeConfig.feePercentage}% fee: ${feeAmountSOL.toFixed(6)} SOL`);
+            const feeResult = await this.feeManager.transferFee({
+              fromKeypair: keypair,
+              feeAmount: feeAmountLamports,
+              strategyId: this.strategyId,
+            });
+            
+            if (feeResult.success && feeResult.signature) {
+              console.log(`   ✅ Fee collected: ${feeResult.signature}`);
+            }
+          }
+        }
+      } catch (feeError: any) {
+        console.error(`   ⚠️ Fee collection failed (trade still successful):`, feeError.message);
+      }
 
       // Update progress
       this.progress.totalTrades++;

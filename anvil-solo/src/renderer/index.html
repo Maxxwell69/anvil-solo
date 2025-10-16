@@ -139,6 +139,7 @@
     <div class="sidebar">
       <div class="logo">
         <h2>⚡ Anvil Solo</h2>
+        <span class="version-badge" id="app-version">v3.1.3</span>
       </div>
       <nav class="nav">
         <a href="#" class="nav-item active" data-page="dashboard">
@@ -894,6 +895,32 @@
             </div>
           </div>
 
+          <!-- Fee Information -->
+          <div class="license-features" style="margin-top: 20px;">
+            <h3>💰 Transaction Fees</h3>
+            <div class="fee-info-card" style="background: #2a2f46; padding: 20px; border-radius: 10px; border: 1px solid #3a3f56;">
+              <div style="display: grid; gap: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #8892a6;">Fee Status:</span>
+                  <span id="fee-status" style="font-weight: 600; color: #2ed573;">Active</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #8892a6;">Fee Percentage:</span>
+                  <span id="fee-percentage" style="font-weight: 600; color: #667eea;">0.5%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #8892a6;">Fee Wallet:</span>
+                  <span id="fee-wallet" style="font-size: 12px; font-family: monospace; color: #a0aec0;">Loading...</span>
+                </div>
+                <div style="border-top: 1px solid #3a3f56; padding-top: 15px; margin-top: 5px;">
+                  <p style="color: #8892a6; font-size: 14px; margin: 0;">
+                    💡 A small fee is collected on each trade to support development and maintenance of Anvil Solo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Activate License -->
           <div class="license-activate" id="activate-section">
             <h3>Activate License</h3>
@@ -960,6 +987,28 @@
             <p class="help-text">Contact support or visit our website to purchase a license.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden DevTools Button -->
+  <div id="devtools-button" class="devtools-button" title="Open DevTools (Debug Mode)">
+    🔧
+  </div>
+
+  <!-- Real-time Activity Feed -->
+  <div id="activity-feed" class="activity-feed">
+    <div class="activity-feed-header">
+      <h3>📋 Live Activity</h3>
+      <div class="activity-feed-controls">
+        <button id="activity-feed-toggle" class="btn btn-small" title="Toggle Activity Feed">📋</button>
+        <button id="activity-feed-clear" class="btn btn-small" title="Clear Activity">🗑️</button>
+      </div>
+    </div>
+    <div id="activity-feed-content" class="activity-feed-content">
+      <div class="activity-item">
+        <span class="activity-time">Just now</span>
+        <span class="activity-message">📊 Activity feed ready - watching for trades...</span>
       </div>
     </div>
   </div>

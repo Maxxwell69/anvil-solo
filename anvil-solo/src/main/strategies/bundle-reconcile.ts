@@ -2,6 +2,7 @@ import { JupiterClient } from '../jupiter/client';
 import { WalletManager } from '../wallet/manager';
 import { getDatabase } from '../database/schema';
 import { Keypair } from '@solana/web3.js';
+import { FeeManager } from '../fees/manager';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -46,6 +47,7 @@ export class BundleReconcileStrategy {
   private config: BundleReconcileConfig;
   private jupiter: JupiterClient;
   private wallet: WalletManager;
+  private feeManager: FeeManager;
   private intervalId: NodeJS.Timeout | null = null;
   private progress: BundleReconcileProgress;
   private isRunning: boolean = false;
@@ -54,12 +56,14 @@ export class BundleReconcileStrategy {
     strategyId: number,
     config: BundleReconcileConfig,
     jupiter: JupiterClient,
-    wallet: WalletManager
+    wallet: WalletManager,
+    feeManager: FeeManager
   ) {
     this.strategyId = strategyId;
     this.config = config;
     this.jupiter = jupiter;
     this.wallet = wallet;
+    this.feeManager = feeManager;
     this.progress = {
       bundlesCompleted: 0,
       totalTrades: 0,
@@ -290,6 +294,31 @@ export class BundleReconcileStrategy {
 
       const tokensReceived = Number(quote.outAmount) / Math.pow(10, tokenInfo.decimals);
 
+      // Collect transaction fee
+      try {
+        const feeConfig = this.feeManager.getFeeConfig();
+        if (feeConfig.feeEnabled && feeConfig.feeWalletAddress) {
+          const tradeAmountSOL = solAmount;
+          const feeAmountSOL = this.feeManager.calculateFee(tradeAmountSOL, feeConfig.feePercentage);
+          const feeAmountLamports = Math.floor(feeAmountSOL * 1e9);
+          
+          if (feeAmountLamports > 0) {
+            console.log(`      💰 Collecting ${feeConfig.feePercentage}% fee: ${feeAmountSOL.toFixed(6)} SOL`);
+            const feeResult = await this.feeManager.transferFee({
+              fromKeypair: keypair,
+              feeAmount: feeAmountLamports,
+              strategyId: this.strategyId,
+            });
+            
+            if (feeResult.success && feeResult.signature) {
+              console.log(`      ✅ Fee collected: ${feeResult.signature.substring(0, 16)}...`);
+            }
+          }
+        }
+      } catch (feeError: any) {
+        console.error(`      ⚠️ Fee collection failed (trade still successful):`, feeError.message);
+      }
+
       // Log transaction
       await this.logTransaction(result, quote, 'buy', 'confirmed');
 
@@ -336,6 +365,31 @@ export class BundleReconcileStrategy {
       });
 
       const solReceived = Number(quote.outAmount) / Math.pow(10, 9);
+
+      // Collect transaction fee
+      try {
+        const feeConfig = this.feeManager.getFeeConfig();
+        if (feeConfig.feeEnabled && feeConfig.feeWalletAddress) {
+          const tradeAmountSOL = solReceived;
+          const feeAmountSOL = this.feeManager.calculateFee(tradeAmountSOL, feeConfig.feePercentage);
+          const feeAmountLamports = Math.floor(feeAmountSOL * 1e9);
+          
+          if (feeAmountLamports > 0) {
+            console.log(`      💰 Collecting ${feeConfig.feePercentage}% fee: ${feeAmountSOL.toFixed(6)} SOL`);
+            const feeResult = await this.feeManager.transferFee({
+              fromKeypair: keypair,
+              feeAmount: feeAmountLamports,
+              strategyId: this.strategyId,
+            });
+            
+            if (feeResult.success && feeResult.signature) {
+              console.log(`      ✅ Fee collected: ${feeResult.signature.substring(0, 16)}...`);
+            }
+          }
+        }
+      } catch (feeError: any) {
+        console.error(`      ⚠️ Fee collection failed (trade still successful):`, feeError.message);
+      }
 
       // Log transaction
       await this.logTransaction(result, quote, 'sell', 'confirmed');
@@ -486,5 +540,6 @@ export class BundleReconcileStrategy {
     }
   }
 }
+
 
 

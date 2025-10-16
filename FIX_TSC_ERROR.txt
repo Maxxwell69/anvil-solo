@@ -1,0 +1,85 @@
+================================================================================
+                     FIX: 'tsc' is not recognized
+================================================================================
+
+PROBLEM: TypeScript compiler (tsc) is not in your PATH
+
+SOLUTION: Use the NEW simplified scripts
+
+================================================================================
+
+STEP 1: BUILD THE INSTALLER
+----------------------------
+
+Run this command:
+  BUILD-INSTALLER-SIMPLE.bat
+
+This uses 'npx tsc' which finds TypeScript in node_modules
+(no need to have TypeScript installed globally)
+
+Wait 3-5 minutes while it:
+  1. Installs dependencies (including TypeScript)
+  2. Compiles TypeScript with npx
+  3. Copies renderer files
+  4. Creates installer with electron-builder
+
+Output: anvil-solo\release\Anvil-Solo-Setup-3.0.0.exe
+
+
+STEP 2: COPY TO DOWNLOADS FOLDER
+---------------------------------
+
+Run this command:
+  COPY-INSTALLER-TO-DOWNLOADS.bat
+
+This copies the installer to:
+  cloud-services\public\downloads\anvil-solo-setup.exe
+
+Done! Downloads will now work!
+
+================================================================================
+
+WHY THE OLD SCRIPT FAILED:
+
+Old script: npm run build
+  → Calls: tsc (expects TypeScript in PATH)
+  → Error: 'tsc' is not recognized
+
+New script: npx tsc
+  → Uses: node_modules/.bin/tsc (local install)
+  → Works: ✅
+
+================================================================================
+
+ALTERNATIVE: Install TypeScript Globally
+-----------------------------------------
+
+If you want to use the old script:
+
+  npm install -g typescript
+
+This installs TypeScript globally so 'tsc' command works everywhere.
+
+But the new script doesn't need this!
+
+================================================================================
+
+QUICK COMMANDS:
+
+# Build installer:
+BUILD-INSTALLER-SIMPLE.bat
+
+# Copy to downloads:
+COPY-INSTALLER-TO-DOWNLOADS.bat
+
+# Test:
+cd cloud-services
+npm run dev
+
+# Visit:
+http://localhost:3000/api/downloads/windows-setup
+
+================================================================================
+
+That's it! Use the new scripts and it will work! ✅
+

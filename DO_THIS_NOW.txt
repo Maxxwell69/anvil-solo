@@ -1,0 +1,97 @@
+================================================================================
+                          DO THIS NOW TO FIX DOWNLOADS
+================================================================================
+
+PROBLEM: Downloads have no files because the installer doesn't exist yet!
+
+SOLUTION: Run this ONE command to build and copy the installer:
+
+================================================================================
+
+                cd anvil3.0
+                BUILD-AND-COPY-INSTALLER.bat
+
+================================================================================
+
+This will:
+1. Build Anvil Solo from source (3-5 minutes)
+2. Create Windows installer (.exe file)
+3. Copy it to cloud-services/public/downloads/
+4. Ready for downloads!
+
+After that command finishes:
+
+OPTION 1: Test Locally
+----------------------
+cd cloud-services
+npm run dev
+
+Then visit: http://localhost:3000/api/downloads/windows-setup
+
+OPTION 2: Deploy to Railway
+----------------------------
+cd cloud-services
+git add public/downloads/
+git commit -m "Add Anvil Solo installer"
+git push
+
+Then visit: https://anvil-solo-production.up.railway.app/api/downloads/windows-setup
+
+================================================================================
+
+WHY DOWNLOADS WERE EMPTY:
+
+✅ Download system IS already set up (working perfectly)
+✅ Route exists: /api/downloads/windows-setup
+✅ Code works correctly
+
+❌ But no actual file exists yet!
+❌ Looking for: cloud-services/public/downloads/anvil-solo-setup.exe
+❌ Currently: File doesn't exist
+
+Fix: Build the installer and put it there!
+
+================================================================================
+
+WHAT WILL HAPPEN:
+
+BEFORE (now):
+  cloud-services/public/downloads/
+  ├── PLACE-INSTALLER-HERE.txt  ← Just placeholder
+  └── README.md
+
+  Result: 404 - File not found
+
+AFTER (running command):
+  cloud-services/public/downloads/
+  ├── anvil-solo-setup.exe       ← ~150 MB actual file!
+  ├── PLACE-INSTALLER-HERE.txt
+  └── README.md
+
+  Result: Download works! ✅
+
+================================================================================
+
+JUST RUN THIS:
+
+  BUILD-AND-COPY-INSTALLER.bat
+
+That's it!
+
+================================================================================
+
+IF THAT FAILS, DO MANUALLY:
+
+cd anvil-solo
+npm install
+npm run build
+npm run package
+cd ..
+copy anvil-solo\release\*.exe cloud-services\public\downloads\anvil-solo-setup.exe
+
+================================================================================
+
+For more details, read: ACTUAL-SETUP-DOWNLOADS.md
+
+================================================================================
+

@@ -1,6 +1,6 @@
 {
   "name": "anvil-solo",
-  "version": "3.0.0",
+  "version": "3.1.3",
   "description": "Solana Meme Coin Trading Bot - DCA, Ratio Trading, and Volume Generation",
   "main": "dist/main/main.js",
   "author": "Anvil",
@@ -28,13 +28,16 @@
     "buildDependenciesFromSource": false,
     "asar": true,
     "asarUnpack": [
-      "**/node_modules/better-sqlite3/**/*"
+      "**/node_modules/better-sqlite3/**/*",
+      "**/node_modules/@solana/**/*"
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "publisherName": "Anvil Labs",
@@ -70,6 +73,7 @@
   },
   "dependencies": {
     "@jup-ag/api": "^6.0.30",
+    "@solana/codecs-data-structures": "^4.0.0",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.95.8",
     "better-sqlite3": "^11.7.0",

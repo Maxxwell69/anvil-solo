@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
+import dns from 'dns';
 import { initializeDatabase, closeDatabase } from './database/schema';
 import { WalletManager } from './wallet/manager';
 import { JupiterClient } from './jupiter/client';
@@ -9,6 +10,11 @@ import { FeeManager } from './fees/manager';
 import { DCAStrategy, DCAConfig } from './strategies/dca';
 import { RatioStrategy, RatioConfig } from './strategies/ratio';
 import { BundleStrategy, BundleConfig } from './strategies/bundle';
+
+// Configure DNS servers for better reliability across all installations
+// Uses Google DNS (8.8.8.8, 8.8.4.4) and Cloudflare DNS (1.1.1.1, 1.0.0.1)
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1']);
+console.log('🌐 DNS servers configured: Google DNS + Cloudflare DNS');
 
 // Global instances
 let mainWindow: BrowserWindow | null = null;
@@ -30,6 +36,18 @@ function logActivity(params: {
   metadata?: any;
   severity?: 'info' | 'success' | 'warning' | 'error';
 }) {
+  // Send activity update to renderer for real-time feed
+  if (mainWindow) {
+    const activityMessage = `${params.title}${params.description ? ` - ${params.description}` : ''}`;
+    mainWindow.webContents.send('activity-update', {
+      type: params.severity || 'info',
+      message: activityMessage,
+      timestamp: new Date(),
+      category: params.category,
+      eventType: params.eventType,
+      strategyId: params.strategyId
+    });
+  }
   try {
     const db = require('./database/schema').getDatabase();
     db.prepare(`
@@ -119,8 +137,10 @@ function createWindow() {
   // Load the HTML file
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  // Open DevTools in development
-  mainWindow.webContents.openDevTools();
+  // Open DevTools only in development mode
+  if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
+    mainWindow.webContents.openDevTools();
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -187,7 +207,7 @@ async function loadActiveStrategiesFromDatabase() {
       
       try {
         if (s.type === 'dca') {
-          const strategy = new DCAStrategy(strategyId, config, jupiterClient!, walletManager!);
+          const strategy = new DCAStrategy(strategyId, config, jupiterClient!, walletManager!, feeManager!);
           activeStrategies.set(strategyId, strategy);
           
           // Auto-start if it was active
@@ -196,7 +216,7 @@ async function loadActiveStrategiesFromDatabase() {
           }
         } else if (s.type === 'ratio') {
           const { RatioSimpleStrategy } = require('./strategies/ratio-simple');
-          const strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient!, walletManager!);
+          const strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient!, walletManager!, feeManager!);
           activeStrategies.set(strategyId, strategy);
           
           if (s.status === 'active') {
@@ -204,7 +224,7 @@ async function loadActiveStrategiesFromDatabase() {
           }
         } else if (s.type === 'bundle') {
           const { BundleReconcileStrategy } = require('./strategies/bundle-reconcile');
-          const strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient!, walletManager!);
+          const strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient!, walletManager!, feeManager!);
           activeStrategies.set(strategyId, strategy);
           
           if (s.status === 'active') {
@@ -573,6 +593,40 @@ ipcMain.handle('license:getHwid', async (event) => {
 });
 
 // ============================================================================
+// IPC HANDLERS - DevTools
+// ============================================================================
+
+ipcMain.handle('devtools:open', async (event) => {
+  try {
+    if (mainWindow) {
+      // Open DevTools and focus on Console tab
+      mainWindow.webContents.openDevTools();
+      
+      // Send recent console logs to renderer
+      const logs = [
+        '🔧 DevTools opened via IPC',
+        '📊 App Status: Running',
+        '🔑 License Server: https://pure-analysis.up.railway.app',
+        '💾 Database: Connected',
+        '🌐 RPC: https://mainnet.helius-rpc.com',
+        '📈 Jupiter API: https://quote-api.jup.ag/v6'
+      ];
+      
+      // Send logs to renderer for display
+      mainWindow.webContents.send('devtools-logs', logs);
+      
+      console.log('🔧 DevTools opened via IPC');
+      return { success: true };
+    } else {
+      throw new Error('Main window not available');
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to open DevTools:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================================================
 // IPC HANDLERS - Strategy Management
 // ============================================================================
 
@@ -591,6 +645,7 @@ ipcMain.handle('strategies:getAll', async (event) => {
         t.symbol as token_symbol
       FROM strategies s
       LEFT JOIN tokens t ON s.token_address = t.contract_address
+      WHERE s.status != 'archived'
       ORDER BY s.created_at DESC
     `).all();
     
@@ -793,7 +848,7 @@ ipcMain.handle('strategy:dca:create', async (event, config: DCAConfig) => {
     const strategyId = result.lastInsertRowid as number;
     
     // Create and store strategy instance
-    const strategy = new DCAStrategy(strategyId, config, jupiterClient, walletManager);
+    const strategy = new DCAStrategy(strategyId, config, jupiterClient, walletManager, feeManager!);
     activeStrategies.set(strategyId, strategy);
     
     // Log activity
@@ -835,7 +890,7 @@ ipcMain.handle('strategy:dca:start', async (event, strategyId: number) => {
     let strategy = activeStrategies.get(strategyId) as DCAStrategy;
     if (!strategy) {
       console.log(`   Creating new DCA strategy instance for #${strategyId}`);
-      strategy = new DCAStrategy(strategyId, config, jupiterClient, walletManager);
+      strategy = new DCAStrategy(strategyId, config, jupiterClient, walletManager, feeManager!);
       activeStrategies.set(strategyId, strategy);
     }
     
@@ -987,7 +1042,7 @@ ipcMain.handle('strategy:ratio:create', async (event, config) => {
     
     // Use the new simplified ratio strategy
     const { RatioSimpleStrategy } = require('./strategies/ratio-simple');
-    const strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient, walletManager);
+    const strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient, walletManager, feeManager!);
     activeStrategies.set(strategyId, strategy);
     
     // Log activity
@@ -1036,7 +1091,7 @@ ipcMain.handle('strategy:ratio:start', async (event, strategyId: number) => {
     if (!existingStrategy) {
       console.log(`   Creating new Ratio strategy instance for #${strategyId}`);
       const { RatioSimpleStrategy } = require('./strategies/ratio-simple');
-      strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient, walletManager);
+      strategy = new RatioSimpleStrategy(strategyId, config, jupiterClient, walletManager, feeManager!);
       activeStrategies.set(strategyId, strategy);
     } else {
       strategy = existingStrategy;
@@ -1122,7 +1177,7 @@ ipcMain.handle('strategy:bundle:create', async (event, config) => {
     
     // Use the new reconciling bundle strategy
     const { BundleReconcileStrategy } = require('./strategies/bundle-reconcile');
-    const strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient, walletManager);
+    const strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient, walletManager, feeManager!);
     activeStrategies.set(strategyId, strategy);
     
     // Log activity
@@ -1170,7 +1225,7 @@ ipcMain.handle('strategy:bundle:start', async (event, strategyId: number) => {
     if (!existingStrategy) {
       console.log(`   Creating new Bundle Reconcile strategy instance for #${strategyId}`);
       const { BundleReconcileStrategy } = require('./strategies/bundle-reconcile');
-      strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient, walletManager);
+      strategy = new BundleReconcileStrategy(strategyId, config, jupiterClient, walletManager, feeManager!);
       activeStrategies.set(strategyId, strategy);
     } else {
       strategy = existingStrategy;

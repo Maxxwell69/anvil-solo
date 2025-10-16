@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { JupiterClient } from '../jupiter/client';
 import { WalletManager } from '../wallet/manager';
 import { getDatabase } from '../database/schema';
+import { FeeManager } from '../fees/manager';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -35,6 +36,7 @@ export class DCAStrategy {
   private config: DCAConfig;
   private jupiter: JupiterClient;
   private wallet: WalletManager;
+  private feeManager: FeeManager;
   private cronJob: cron.ScheduledTask | null = null;
   private progress: DCAProgress;
   private isRunning: boolean = false;
@@ -43,12 +45,14 @@ export class DCAStrategy {
     strategyId: number,
     config: DCAConfig,
     jupiter: JupiterClient,
-    wallet: WalletManager
+    wallet: WalletManager,
+    feeManager: FeeManager
   ) {
     this.strategyId = strategyId;
     this.config = config;
     this.jupiter = jupiter;
     this.wallet = wallet;
+    this.feeManager = feeManager;
     this.progress = {
       completed: 0,
       total: config.numberOfOrders,
@@ -162,6 +166,50 @@ export class DCAStrategy {
 
       // Log successful transaction
       await this.logTransaction(result, quote, 'confirmed');
+
+      // Collect transaction fee (0.5% of trade amount)
+      try {
+        console.log(`   🔍 Checking fee collection...`);
+        const feeConfig = this.feeManager.getFeeConfig();
+        console.log(`   📊 Fee config: enabled=${feeConfig.feeEnabled}, percentage=${feeConfig.feePercentage}%, wallet=${feeConfig.feeWalletAddress ? feeConfig.feeWalletAddress.substring(0,8) + '...' : 'NOT SET'}`);
+        
+        if (feeConfig.feeEnabled && feeConfig.feeWalletAddress) {
+          const tradeAmountSOL = this.config.direction === 'buy' ? amount : (Number(quote.outAmount) / 1e9);
+          const feeAmountSOL = this.feeManager.calculateFee(tradeAmountSOL, feeConfig.feePercentage);
+          const feeAmountLamports = Math.floor(feeAmountSOL * 1e9);
+          
+          console.log(`   💵 Trade amount: ${tradeAmountSOL.toFixed(6)} SOL`);
+          console.log(`   💰 Fee amount: ${feeAmountSOL.toFixed(6)} SOL (${feeAmountLamports} lamports)`);
+          
+          if (feeAmountLamports > 0) {
+            console.log(`   💸 Transferring ${feeConfig.feePercentage}% fee: ${feeAmountSOL.toFixed(6)} SOL...`);
+            const feeResult = await this.feeManager.transferFee({
+              fromKeypair: keypair,
+              feeAmount: feeAmountLamports,
+              strategyId: this.strategyId,
+            });
+            
+            if (feeResult.success && feeResult.signature) {
+              console.log(`   ✅ Fee collected successfully!`);
+              console.log(`   📝 Fee transaction: https://solscan.io/tx/${feeResult.signature}`);
+            } else {
+              console.error(`   ❌ Fee collection failed:`, feeResult.error);
+            }
+          } else {
+            console.log(`   ⚠️ Fee amount too small (< 1 lamport), skipping`);
+          }
+        } else {
+          if (!feeConfig.feeEnabled) {
+            console.log(`   ℹ️ Fee collection disabled`);
+          }
+          if (!feeConfig.feeWalletAddress) {
+            console.log(`   ⚠️ Fee wallet address not configured`);
+          }
+        }
+      } catch (feeError: any) {
+        console.error(`   ❌ Fee collection error (trade still successful):`, feeError.message);
+        console.error(`   📋 Error details:`, feeError);
+      }
 
       this.progress.completed++;
       this.progress.successfulTrades++;

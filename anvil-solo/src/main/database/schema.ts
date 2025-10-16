@@ -189,6 +189,47 @@ export class DatabaseSchema {
   private runMigrations(): void {
     console.log('Running database migrations...');
 
+    // Migration 0: Ensure fee settings exist (for databases created before fee system)
+    console.log('  🔧 Migration 0: Checking fee settings...');
+    try {
+      const feeEnabled = this.db.prepare('SELECT value FROM settings WHERE key = ?').get('fee_enabled');
+      const feePercentage = this.db.prepare('SELECT value FROM settings WHERE key = ?').get('fee_percentage');
+      const feeWallet = this.db.prepare('SELECT value FROM settings WHERE key = ?').get('fee_wallet_address');
+      
+      console.log('  📊 Current fee settings:', {
+        enabled: (feeEnabled as any)?.value || 'NOT SET',
+        percentage: (feePercentage as any)?.value || 'NOT SET',
+        wallet: (feeWallet as any)?.value ? (feeWallet as any).value.substring(0, 8) + '...' : 'NOT SET'
+      });
+      
+      let settingsAdded = 0;
+      
+      if (!feeEnabled) {
+        console.log('  🔧 Adding fee_enabled setting');
+        this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('fee_enabled', 'true');
+        settingsAdded++;
+      }
+      if (!feePercentage) {
+        console.log('  🔧 Adding fee_percentage setting');
+        this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('fee_percentage', '0.5');
+        settingsAdded++;
+      }
+      if (!feeWallet) {
+        console.log('  🔧 Adding fee_wallet_address setting');
+        this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('fee_wallet_address', '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd');
+        settingsAdded++;
+      }
+      
+      if (settingsAdded > 0) {
+        console.log(`  ✅ Fee settings migration complete - added ${settingsAdded} settings`);
+      } else {
+        console.log('  ✅ Fee settings migration complete - all settings already exist');
+      }
+    } catch (migrationError: any) {
+      console.error('  ❌ Fee settings migration failed:', migrationError.message);
+      console.error('  📋 Error details:', migrationError);
+    }
+
     // Migration 1: Add archive fields and update CHECK constraint
     try {
       // Test if 'archived' status is allowed by trying to use it
@@ -347,7 +388,50 @@ export function initializeDatabase(): Database.Database {
   if (!dbInstance) {
     dbInstance = new DatabaseSchema();
   }
+  
+  // Ensure fee settings exist every time (fallback for existing installations)
+  ensureFeeSettings();
+  
   return dbInstance.getDatabase();
+}
+
+function ensureFeeSettings(): void {
+  try {
+    const db = dbInstance?.getDatabase();
+    if (!db) return;
+    
+    console.log('🔧 Ensuring fee settings exist...');
+    
+    const feeEnabled = db.prepare('SELECT value FROM settings WHERE key = ?').get('fee_enabled');
+    const feePercentage = db.prepare('SELECT value FROM settings WHERE key = ?').get('fee_percentage');
+    const feeWallet = db.prepare('SELECT value FROM settings WHERE key = ?').get('fee_wallet_address');
+    
+    let settingsAdded = 0;
+    
+    if (!feeEnabled) {
+      console.log('  🔧 Adding missing fee_enabled setting');
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('fee_enabled', 'true');
+      settingsAdded++;
+    }
+    if (!feePercentage) {
+      console.log('  🔧 Adding missing fee_percentage setting');
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('fee_percentage', '0.5');
+      settingsAdded++;
+    }
+    if (!feeWallet) {
+      console.log('  🔧 Adding missing fee_wallet_address setting');
+      db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('fee_wallet_address', '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd');
+      settingsAdded++;
+    }
+    
+    if (settingsAdded > 0) {
+      console.log(`✅ Fee settings ensured - added ${settingsAdded} missing settings`);
+    } else {
+      console.log('✅ Fee settings verified - all present');
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to ensure fee settings:', error.message);
+  }
 }
 
 export function getDatabase(): Database.Database {

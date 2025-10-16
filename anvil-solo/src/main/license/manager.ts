@@ -2,7 +2,7 @@ import { machineIdSync } from 'node-machine-id';
 import fetch from 'cross-fetch';
 import { getDatabase } from '../database/schema';
 
-const LICENSE_API_URL = process.env.LICENSE_API_URL || 'https://endearing-compassion-production-bde0.up.railway.app';
+const LICENSE_API_URL = process.env.LICENSE_API_URL || 'https://pure-analysis.up.railway.app';
 
 export enum LicenseTier {
   FREE = 'free',
