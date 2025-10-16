@@ -170,6 +170,60 @@ async function loadDownloads() {
         const downloadsList = document.getElementById('downloadsList');
         downloadsList.innerHTML = '';
 
+        // Always show download links (GitHub releases)
+        const availableDownloads = [
+            {
+                id: 'windows-github',
+                displayName: 'Anvil Solo - Windows',
+                description: 'Portable version for Windows 10/11 (Extract and run)',
+                version: '3.0.0',
+                size: 127000000,
+                platform: 'windows',
+                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/v3.0.0/anvil-solo-portable.zip'
+            }
+        ];
+
+        availableDownloads.forEach(file => {
+            const sizeInMB = (file.size / 1000000).toFixed(0);
+            const platformIcon = file.platform === 'windows' ? 'fa-windows' : 
+                                file.platform === 'mac' ? 'fa-apple' : 'fa-linux';
+
+            downloadsList.innerHTML += `
+                <div class="border rounded-lg p-6 bg-white shadow-sm hover:shadow-lg transition">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center mb-2">
+                                <i class="fab ${platformIcon} text-2xl text-purple-600 mr-3"></i>
+                                <h3 class="text-xl font-bold text-gray-800">${file.displayName}</h3>
+                            </div>
+                            <p class="text-gray-600 mb-2">${file.description}</p>
+                            <div class="flex gap-4 text-sm text-gray-500">
+                                <span><i class="fas fa-tag mr-1"></i>Version ${file.version}</span>
+                                <span><i class="fas fa-hdd mr-1"></i>${sizeInMB} MB</span>
+                                <span><i class="fas fa-check-circle mr-1 text-green-600"></i>Free Download</span>
+                            </div>
+                        </div>
+                        <a href="${file.downloadUrl}" 
+                           download
+                           class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition flex items-center no-underline">
+                            <i class="fas fa-download mr-2"></i>Download
+                        </a>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <p class="text-sm text-gray-600 mb-2">
+                            <i class="fas fa-info-circle mr-2 text-blue-500"></i>
+                            <strong>Installation:</strong> Extract the zip file and run "Anvil Solo.exe"
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            <i class="fas fa-shield-alt mr-2"></i>
+                            Enter your license key when the app opens to unlock features
+                        </p>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Still check if backend files exist too
         if (filesData.files && filesData.files.length > 0) {
             filesData.files.forEach(file => {
                 const sizeInMB = file.size ? (file.size / 1000000).toFixed(0) : '~150';
@@ -199,7 +253,9 @@ async function loadDownloads() {
                     </div>
                 `;
             });
-            } else {
+        }
+        
+        if (downloadsList.innerHTML === '') {
                 downloadsList.innerHTML = `
                     <div class="text-center py-12 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border-2 border-dashed border-purple-300">
                         <i class="fas fa-cloud-upload-alt text-purple-300 text-6xl mb-4"></i>
