@@ -173,13 +173,13 @@ async function loadDownloads() {
         // Always show download links (GitHub releases)
         const availableDownloads = [
             {
-                id: 'windows-github',
-                displayName: 'Anvil Solo - Windows',
-                description: 'Portable version for Windows 10/11 (Extract and run)',
+                id: 'windows-installer',
+                displayName: 'Anvil Solo - Windows Installer',
+                description: 'Professional installer - Creates desktop shortcut and Start Menu entry',
                 version: '3.1.1',
-                size: 127000000,
+                size: 88635462,
                 platform: 'windows',
-                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/3.1.1/anvil-solo-portable.zip'
+                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/3.1.1/Anvil-Solo-Setup-3.1.1.exe'
             }
         ];
 
@@ -212,9 +212,13 @@ async function loadDownloads() {
                     <div class="mt-4 pt-4 border-t border-gray-200">
                         <p class="text-sm text-gray-600 mb-2">
                             <i class="fas fa-info-circle mr-2 text-blue-500"></i>
-                            <strong>Installation:</strong> Extract the zip file and run "Anvil Solo.exe"
+                            <strong>Installation:</strong> Run the installer and follow the setup wizard
                         </p>
                         <p class="text-sm text-gray-500">
+                            <i class="fas fa-check-circle mr-2 text-green-600"></i>
+                            Creates desktop shortcut, Start Menu entry, and uninstaller automatically
+                        </p>
+                        <p class="text-sm text-gray-500 mt-2">
                             <i class="fas fa-shield-alt mr-2"></i>
                             Enter your license key when the app opens to unlock features
                         </p>
