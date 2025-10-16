@@ -28,11 +28,11 @@ export interface LicenseInfo {
   lastValidated: Date | null;
 }
 
-// Free tier limits - MVP MODE: UNLIMITED FOR TESTING
+// Free tier limits - RESTRICTED (users must purchase license for full features)
 const FREE_TIER_FEATURES: LicenseFeatures = {
-  maxActiveStrategies: -1, // UNLIMITED
-  maxWallets: -1, // UNLIMITED
-  strategyTypes: ['dca', 'ratio', 'bundle'], // ALL TYPES
+  maxActiveStrategies: 1, // Only 1 active strategy
+  maxWallets: 1, // Only 1 wallet
+  strategyTypes: ['dca'], // DCA only - no ratio or bundle trading
   cloudBackup: false,
   prioritySupport: false,
 };

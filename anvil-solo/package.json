@@ -11,7 +11,7 @@
     "start": "electron dist/main/main.js",
     "dev": "npm run build && npm start",
     "package": "npm run build && electron-builder",
-    "postinstall": "electron-builder install-app-deps"
+    "rebuild": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.anvil.solo",
@@ -23,6 +23,12 @@
       "dist/**/*",
       "node_modules/**/*",
       "package.json"
+    ],
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*"
     ],
     "win": {
       "target": [
