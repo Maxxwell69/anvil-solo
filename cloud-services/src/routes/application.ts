@@ -300,10 +300,10 @@ router.post('/admin/reject/:applicationId', authenticateUser, async (req: AuthRe
 });
 
 // Create applications table if it doesn't exist
-async function ensureApplicationsTable() {
-  const sql = getDatabase();
-  
+export async function ensureApplicationsTable() {
   try {
+    const sql = getDatabase();
+    
     await sql`
       CREATE TABLE IF NOT EXISTS applications (
         id SERIAL PRIMARY KEY,
@@ -334,9 +334,6 @@ async function ensureApplicationsTable() {
     console.error('Applications table error:', error);
   }
 }
-
-// Initialize on import
-ensureApplicationsTable().catch(console.error);
 
 export default router;
 
