@@ -170,16 +170,16 @@ async function loadDownloads() {
         const downloadsList = document.getElementById('downloadsList');
         downloadsList.innerHTML = '';
 
-        // Always show download links (Google Drive)
+        // Always show download links (GitHub releases)
         const availableDownloads = [
             {
-                id: 'windows-gdrive',
+                id: 'windows-github',
                 displayName: 'Anvil Solo - Windows',
                 description: 'Portable version for Windows 10/11 (Extract and run)',
                 version: '3.0.0',
                 size: 127000000,
                 platform: 'windows',
-                downloadUrl: 'https://drive.google.com/uc?export=download&id=1N_VVuIPQBkNuDih5MrNxVuydODJiA-0A'
+                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/v3.0.0/anvil-solo-portable.zip'
             }
         ];
 
