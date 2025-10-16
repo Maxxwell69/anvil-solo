@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getDatabase } from '../database/postgres-init.js';
-import { authenticateUser, AuthRequest } from '../middleware/auth.js';
+import { authenticateUser, AuthRequest } from '../middleware/auth-enhanced.js';
 
 const router = Router();
 
