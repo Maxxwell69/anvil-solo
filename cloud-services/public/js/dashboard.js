@@ -176,10 +176,10 @@ async function loadDownloads() {
                 id: 'windows-installer',
                 displayName: 'Anvil Solo - Windows Installer',
                 description: 'Professional installer - Creates desktop shortcut and Start Menu entry',
-                version: '3.1.1',
+                version: '3.1.2',
                 size: 88635462,
                 platform: 'windows',
-                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/3.1.1/Anvil-Solo-Setup-3.1.1.exe'
+                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/3.1.2/Anvil-Solo-Setup-3.1.2.exe'
             }
         ];
 
