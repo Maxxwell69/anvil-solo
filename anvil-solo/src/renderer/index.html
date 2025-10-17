@@ -797,9 +797,12 @@
           </div>
           <div class="form-group">
             <label>Select Token (Optional)</label>
-            <select id="withdraw-token-select">
-              <option value="">-- Select from your tokens or enter below --</option>
+            <select id="withdraw-token-select" disabled>
+              <option value="">-- Select wallet first --</option>
             </select>
+            <div id="withdraw-token-loading" style="display: none; margin-top: 8px; color: #667eea; font-size: 14px;">
+              <span class="loading-spinner">🔄</span> Loading tokens in wallet...
+            </div>
           </div>
           <div class="form-group">
             <label>Or Enter Token Mint</label>

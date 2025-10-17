@@ -283,6 +283,112 @@ function setupWalletPage() {
   
   // Populate withdraw wallet dropdowns on page load
   populateWithdrawWallets();
+  
+  // Listen for wallet selection changes to show tokens in that wallet
+  const tokenFromDropdown = document.getElementById('withdraw-token-from');
+  if (tokenFromDropdown) {
+    tokenFromDropdown.addEventListener('change', async (e) => {
+      const selectedWallet = e.target.value;
+      const tokenSelectDropdown = document.getElementById('withdraw-token-select');
+      const loadingIndicator = document.getElementById('withdraw-token-loading');
+      
+      if (selectedWallet) {
+        // Show loading, disable dropdown
+        if (loadingIndicator) loadingIndicator.style.display = 'block';
+        if (tokenSelectDropdown) {
+          tokenSelectDropdown.disabled = true;
+          tokenSelectDropdown.innerHTML = '<option value="">Loading tokens...</option>';
+        }
+        
+        // Load tokens
+        await loadTokensInWallet(selectedWallet);
+        
+        // Hide loading, enable dropdown
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (tokenSelectDropdown) tokenSelectDropdown.disabled = false;
+      } else {
+        // Clear token list if no wallet selected
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+        if (tokenSelectDropdown) {
+          tokenSelectDropdown.disabled = true;
+          tokenSelectDropdown.innerHTML = '<option value="">-- Select wallet first --</option>';
+        }
+      }
+    });
+  }
+}
+
+// Load tokens in a specific wallet
+async function loadTokensInWallet(walletPubkey) {
+  try {
+    console.log(`Loading tokens for wallet: ${walletPubkey}`);
+    
+    const tokenSelectDropdown = document.getElementById('withdraw-token-select');
+    if (!tokenSelectDropdown) return;
+    
+    // Show loading state
+    tokenSelectDropdown.innerHTML = '<option value="">Loading tokens...</option>';
+    
+    // Get token accounts for this wallet from Solana
+    // For now, we'll use saved tokens and check balances
+    if (!window.electron || !window.electron.token) {
+      tokenSelectDropdown.innerHTML = '<option value="">Error loading tokens</option>';
+      return;
+    }
+    
+    const tokensResponse = await window.electron.token.list();
+    
+    if (!tokensResponse.success || !tokensResponse.tokens || tokensResponse.tokens.length === 0) {
+      tokenSelectDropdown.innerHTML = '<option value="">No tokens in Token Manager - enter address manually below</option>';
+      return;
+    }
+    
+    // Check balance for each token
+    const tokensWithBalances = [];
+    
+    for (const token of tokensResponse.tokens) {
+      try {
+        if (window.electron.wallet && window.electron.wallet.getTokenBalance) {
+          const balance = await window.electron.wallet.getTokenBalance(walletPubkey, token.contract_address);
+          if (balance > 0) {
+            tokensWithBalances.push({
+              ...token,
+              balance: balance
+            });
+          }
+        }
+      } catch (err) {
+        console.warn(`Could not get balance for ${token.symbol}:`, err.message);
+      }
+    }
+    
+    // Populate dropdown with tokens that have balance
+    tokenSelectDropdown.innerHTML = '<option value="">-- Select token to withdraw --</option>';
+    
+    if (tokensWithBalances.length === 0) {
+      const noBalanceOption = document.createElement('option');
+      noBalanceOption.value = '';
+      noBalanceOption.textContent = '-- No token balances in this wallet --';
+      tokenSelectDropdown.appendChild(noBalanceOption);
+    } else {
+      tokensWithBalances.forEach(token => {
+        const option = document.createElement('option');
+        option.value = token.contract_address;
+        option.textContent = `${token.symbol || token.name} (${token.balance.toFixed(4)} tokens)`;
+        option.dataset.decimals = token.decimals || 9;
+        tokenSelectDropdown.appendChild(option);
+      });
+      
+      console.log(`✅ Found ${tokensWithBalances.length} token(s) with balance in wallet`);
+    }
+    
+  } catch (error) {
+    console.error('Error loading tokens in wallet:', error);
+    const tokenSelectDropdown = document.getElementById('withdraw-token-select');
+    if (tokenSelectDropdown) {
+      tokenSelectDropdown.innerHTML = '<option value="">Error loading tokens - enter address manually</option>';
+    }
+  }
 }
 
 // Populate withdraw wallet dropdowns
