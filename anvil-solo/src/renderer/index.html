@@ -12,7 +12,7 @@
   <div id="unlock-screen" class="screen active">
     <div class="unlock-container">
       <h1>🔒 Anvil Solo</h1>
-      <p class="version-splash">v3.4.3</p>
+      <p class="version-splash">v3.5.0</p>
       <p>Unlock your wallet to continue</p>
       <div class="form-group">
         <div class="password-input-wrapper">
@@ -103,6 +103,27 @@
     </div>
   </div>
 
+  <!-- Withdraw Modal -->
+  <div id="withdraw-modal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <h2 id="withdraw-modal-title">💸 Withdraw</h2>
+      <div class="form-group">
+        <label id="withdraw-modal-amount-label">Amount</label>
+        <input type="number" id="withdraw-modal-amount" placeholder="0" step="0.000001" min="0" />
+        <small id="withdraw-modal-balance-hint">Available: -</small>
+      </div>
+      <div class="form-group">
+        <label>Destination Address</label>
+        <input type="text" id="withdraw-modal-to" placeholder="Enter Solana wallet address" />
+      </div>
+      <div class="form-actions">
+        <button id="withdraw-modal-confirm-btn" class="btn btn-primary">💸 Send</button>
+        <button id="withdraw-modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+      </div>
+      <div id="withdraw-modal-status" class="status-message"></div>
+    </div>
+  </div>
+
   <!-- Archive Strategy Modal -->
   <div id="archive-modal" class="modal">
     <div class="modal-content">
@@ -136,7 +157,7 @@
     <div class="sidebar">
       <div class="logo">
         <h2>⚡ Anvil Solo</h2>
-        <span class="version-badge" id="app-version">v3.4.3</span>
+        <span class="version-badge" id="app-version">v3.5.0</span>
       </div>
       <nav class="nav">
         <a href="#" class="nav-item active" data-page="dashboard">
@@ -764,67 +785,6 @@
           </div>
         </div>
 
-        <div class="section">
-          <h2>💸 Withdraw SOL</h2>
-          <div class="form-group">
-            <label>From Wallet</label>
-            <select id="withdraw-sol-from">
-              <option value="">Select wallet...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>To Address</label>
-            <input type="text" id="withdraw-sol-to" placeholder="Destination Solana address" />
-          </div>
-          <div class="form-group">
-            <label>Amount (SOL)</label>
-            <input type="number" id="withdraw-sol-amount" placeholder="0.1" step="0.001" min="0" />
-            <small>⚠️ Minimum 0.001 SOL will be kept in wallet for rent</small>
-          </div>
-          <div class="form-actions">
-            <button id="withdraw-sol-btn" class="btn btn-primary">Withdraw SOL</button>
-          </div>
-          <div id="withdraw-sol-status" class="status-message"></div>
-        </div>
-
-        <div class="section">
-          <h2>🪙 Withdraw Tokens</h2>
-          <div class="form-group">
-            <label>From Wallet</label>
-            <select id="withdraw-token-from">
-              <option value="">Select wallet...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Select Token (Optional)</label>
-            <select id="withdraw-token-select" disabled>
-              <option value="">-- Select wallet first --</option>
-            </select>
-            <small style="color: #ff9f43; display: block; margin-top: 5px;">
-              ⏱️ Note: It may take 5-10 seconds to load token balances from the blockchain
-            </small>
-            <div id="withdraw-token-loading" style="display: none; margin-top: 8px; color: #667eea; font-size: 14px;">
-              <span class="loading-spinner">🔄</span> Loading tokens in wallet...
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Or Enter Token Mint</label>
-            <input type="text" id="withdraw-token-mint" placeholder="Token contract address" />
-          </div>
-          <div class="form-group">
-            <label>To Address</label>
-            <input type="text" id="withdraw-token-to" placeholder="Destination Solana address" />
-          </div>
-          <div class="form-group">
-            <label>Amount (Tokens)</label>
-            <input type="number" id="withdraw-token-amount" placeholder="100" step="0.000001" min="0" />
-            <small>⚠️ Ensure wallet has at least 0.001 SOL for gas fees</small>
-          </div>
-          <div class="form-actions">
-            <button id="withdraw-token-btn" class="btn btn-primary">Withdraw Tokens</button>
-          </div>
-          <div id="withdraw-token-status" class="status-message"></div>
-        </div>
       </div>
 
       <!-- Settings Page -->
@@ -924,7 +884,7 @@
           <div class="version-info-card">
             <div class="version-row">
               <span class="version-label">Current Version:</span>
-              <span class="version-value" id="diag-current-version">v3.4.3</span>
+              <span class="version-value" id="diag-current-version">v3.5.0</span>
             </div>
             <div class="version-row">
               <span class="version-label">Latest Available:</span>

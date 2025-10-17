@@ -277,164 +277,261 @@ function setupWalletPage() {
     refreshWalletsBtn.addEventListener('click', () => {
       console.log('Refreshing wallets...');
       loadAllWallets();
-      populateWithdrawWallets(); // Also refresh withdraw dropdowns
     });
   }
   
-  // Populate withdraw wallet dropdowns on page load
-  populateWithdrawWallets();
+  // Load wallets on page load
+  loadAllWallets();
   
-  // Listen for wallet selection changes to show tokens in that wallet
-  const tokenFromDropdown = document.getElementById('withdraw-token-from');
-  if (tokenFromDropdown) {
-    tokenFromDropdown.addEventListener('change', async (e) => {
-      const selectedWallet = e.target.value;
-      const tokenSelectDropdown = document.getElementById('withdraw-token-select');
-      const loadingIndicator = document.getElementById('withdraw-token-loading');
-      
-      if (selectedWallet) {
-        // Show loading, disable dropdown
-        if (loadingIndicator) loadingIndicator.style.display = 'block';
-        if (tokenSelectDropdown) {
-          tokenSelectDropdown.disabled = true;
-          tokenSelectDropdown.innerHTML = '<option value="">Loading tokens...</option>';
-        }
-        
-        // Load tokens
-        await loadTokensInWallet(selectedWallet);
-        
-        // Hide loading, enable dropdown
-        if (loadingIndicator) loadingIndicator.style.display = 'none';
-        if (tokenSelectDropdown) tokenSelectDropdown.disabled = false;
-      } else {
-        // Clear token list if no wallet selected
-        if (loadingIndicator) loadingIndicator.style.display = 'none';
-        if (tokenSelectDropdown) {
-          tokenSelectDropdown.disabled = true;
-          tokenSelectDropdown.innerHTML = '<option value="">-- Select wallet first --</option>';
-        }
-      }
-    });
-  }
+  // Setup withdraw modal
+  setupWithdrawModal();
 }
 
-// Load tokens in a specific wallet
-async function loadTokensInWallet(walletPubkey) {
+// Load all wallets with balances and token holdings
+async function loadAllWallets() {
   try {
-    console.log(`Loading tokens for wallet: ${walletPubkey}`);
+    const walletsList = document.getElementById('all-wallets-list');
+    if (!walletsList) return;
     
-    const tokenSelectDropdown = document.getElementById('withdraw-token-select');
-    if (!tokenSelectDropdown) return;
+    walletsList.innerHTML = '<div class="empty-state">Loading wallets...</div>';
     
-    // Show loading state
-    tokenSelectDropdown.innerHTML = '<option value="">Loading tokens...</option>';
-    
-    // Get token accounts for this wallet from Solana
-    // For now, we'll use saved tokens and check balances
-    if (!window.electron || !window.electron.token) {
-      tokenSelectDropdown.innerHTML = '<option value="">Error loading tokens</option>';
+    if (!window.electron || !window.electron.wallet || !window.electron.token) {
+      walletsList.innerHTML = '<div class="empty-state">⚠️ Wallet manager not initialized</div>';
       return;
     }
     
-    const tokensResponse = await window.electron.token.list();
-    
-    if (!tokensResponse.success || !tokensResponse.tokens || tokensResponse.tokens.length === 0) {
-      tokenSelectDropdown.innerHTML = '<option value="">No tokens in Token Manager - enter address manually below</option>';
-      return;
-    }
-    
-    // Check balance for each token
-    const tokensWithBalances = [];
-    
-    for (const token of tokensResponse.tokens) {
-      try {
-        if (window.electron.wallet && window.electron.wallet.getTokenBalance) {
-          const balanceResult = await window.electron.wallet.getTokenBalance(walletPubkey, token.contract_address);
-          const balance = balanceResult.success ? balanceResult.balance : 0;
-          
-          console.log(`Token ${token.symbol}: ${balance} balance`);
-          
-          if (balance > 0) {
-            tokensWithBalances.push({
-              ...token,
-              balance: balance
-            });
-          }
-        }
-      } catch (err) {
-        console.warn(`Could not get balance for ${token.symbol}:`, err.message);
-      }
-    }
-    
-    // Populate dropdown with tokens that have balance
-    tokenSelectDropdown.innerHTML = '<option value="">-- Select token to withdraw --</option>';
-    
-    if (tokensWithBalances.length === 0) {
-      const noBalanceOption = document.createElement('option');
-      noBalanceOption.value = '';
-      noBalanceOption.textContent = '-- No token balances in this wallet --';
-      tokenSelectDropdown.appendChild(noBalanceOption);
-    } else {
-      tokensWithBalances.forEach(token => {
-        const option = document.createElement('option');
-        option.value = token.contract_address;
-        option.textContent = `${token.symbol || token.name} (${token.balance.toFixed(4)} tokens)`;
-        option.dataset.decimals = token.decimals || 9;
-        tokenSelectDropdown.appendChild(option);
-      });
-      
-      console.log(`✅ Found ${tokensWithBalances.length} token(s) with balance in wallet`);
-    }
-    
-  } catch (error) {
-    console.error('Error loading tokens in wallet:', error);
-    const tokenSelectDropdown = document.getElementById('withdraw-token-select');
-    if (tokenSelectDropdown) {
-      tokenSelectDropdown.innerHTML = '<option value="">Error loading tokens - enter address manually</option>';
-    }
-  }
-}
-
-// Populate withdraw wallet dropdowns
-async function populateWithdrawWallets() {
-  try {
-    if (!window.electron || !window.electron.wallet) return;
-    
+    // Get all wallets with balances
     const walletsResult = await window.electron.wallet.getAllWithBalances();
     
-    if (!walletsResult.success || !walletsResult.wallets) {
-      console.error('Failed to load wallets for withdraw dropdowns');
+    if (!walletsResult.success || !walletsResult.wallets || walletsResult.wallets.length === 0) {
+      walletsList.innerHTML = '<div class="empty-state">No wallets found. Create or import a wallet to get started.</div>';
       return;
     }
     
-    const solDropdown = document.getElementById('withdraw-sol-from');
-    const tokenDropdown = document.getElementById('withdraw-token-from');
+    // Get saved tokens
+    const tokensResponse = await window.electron.token.list();
+    const savedTokens = tokensResponse.success ? tokensResponse.tokens : [];
     
-    if (!solDropdown || !tokenDropdown) return;
+    walletsList.innerHTML = '';
     
-    // Clear existing options (except first)
-    solDropdown.innerHTML = '<option value="">Select wallet...</option>';
-    tokenDropdown.innerHTML = '<option value="">Select wallet...</option>';
-    
-    // Add wallet options
-    walletsResult.wallets.forEach(wallet => {
-      const label = `${wallet.label || 'Wallet'} (${wallet.balance.toFixed(4)} SOL)`;
-      const pubkey = wallet.public_key;
+    // Display each wallet
+    for (const wallet of walletsResult.wallets) {
+      const walletCard = document.createElement('div');
+      walletCard.className = 'wallet-card';
+      walletCard.style.background = '#1a1f36';
+      walletCard.style.padding = '20px';
+      walletCard.style.borderRadius = '10px';
+      walletCard.style.border = '1px solid #2a2f46';
+      walletCard.style.marginBottom = '15px';
       
-      const solOption = document.createElement('option');
-      solOption.value = pubkey;
-      solOption.textContent = label;
-      solDropdown.appendChild(solOption);
+      // Wallet header
+      const header = document.createElement('div');
+      header.style.display = 'flex';
+      header.style.justifyContent = 'space-between';
+      header.style.alignItems = 'center';
+      header.style.marginBottom = '15px';
+      header.style.paddingBottom = '15px';
+      header.style.borderBottom = '1px solid #2a2f46';
       
-      const tokenOption = document.createElement('option');
-      tokenOption.value = pubkey;
-      tokenOption.textContent = label;
-      tokenDropdown.appendChild(tokenOption);
-    });
+      const leftInfo = document.createElement('div');
+      leftInfo.innerHTML = `
+        <div style="font-size: 1.1em; font-weight: bold; color: #fff; margin-bottom: 5px;">
+          ${wallet.label || 'Wallet'}
+        </div>
+        <div style="font-family: monospace; font-size: 0.85em; color: #8892a6; cursor: pointer;" 
+             onclick="navigator.clipboard.writeText('${wallet.public_key}'); alert('📋 Address copied!')">
+          ${wallet.public_key.slice(0, 8)}...${wallet.public_key.slice(-8)} 📋
+        </div>
+      `;
+      
+      header.appendChild(leftInfo);
+      walletCard.appendChild(header);
+      
+      // SOL Balance row
+      const solRow = document.createElement('div');
+      solRow.style.display = 'flex';
+      solRow.style.justifyContent = 'space-between';
+      solRow.style.alignItems = 'center';
+      solRow.style.padding = '12px 15px';
+      solRow.style.background = 'rgba(102, 126, 234, 0.1)';
+      solRow.style.borderRadius = '8px';
+      solRow.style.marginBottom = '10px';
+      
+      solRow.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.2em;">◎</span>
+          <div>
+            <div style="font-weight: bold; color: #fff;">SOL</div>
+            <div style="font-size: 0.85em; color: #8892a6;">Solana</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div style="font-size: 1.2em; font-weight: 600; color: #2ed573;">
+            ${wallet.balance.toFixed(4)} SOL
+          </div>
+          <button class="btn btn-small" style="background: #667eea; padding: 8px 15px;" 
+                  onclick="openWithdrawModal('sol', '${wallet.public_key}', ${wallet.balance})">
+            💸 Withdraw
+          </button>
+        </div>
+      `;
+      
+      walletCard.appendChild(solRow);
+      
+      // Load token balances
+      if (savedTokens.length > 0) {
+        for (const token of savedTokens) {
+          try {
+            const balanceResult = await window.electron.wallet.getTokenBalance(wallet.public_key, token.contract_address);
+            const balance = balanceResult.success ? balanceResult.balance : 0;
+            
+            if (balance > 0) {
+              const tokenRow = document.createElement('div');
+              tokenRow.style.display = 'flex';
+              tokenRow.style.justifyContent = 'space-between';
+              tokenRow.style.alignItems = 'center';
+              tokenRow.style.padding = '12px 15px';
+              tokenRow.style.background = 'rgba(46, 213, 115, 0.05)';
+              tokenRow.style.borderRadius = '8px';
+              tokenRow.style.marginBottom = '10px';
+              
+              tokenRow.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 1.2em;">🪙</span>
+                  <div>
+                    <div style="font-weight: bold; color: #fff;">${token.symbol || token.name}</div>
+                    <div style="font-size: 0.85em; color: #8892a6;">${token.name || token.symbol}</div>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                  <div style="font-size: 1.1em; font-weight: 600; color: #2ed573;">
+                    ${balance.toFixed(4)}
+                  </div>
+                  <button class="btn btn-small" style="background: #2ed573; padding: 8px 15px;" 
+                          onclick="openWithdrawModal('token', '${wallet.public_key}', ${balance}, '${token.contract_address}', '${token.symbol || token.name}', ${token.decimals || 9})">
+                    💸 Withdraw
+                  </button>
+                </div>
+              `;
+              
+              walletCard.appendChild(tokenRow);
+            }
+          } catch (err) {
+            console.warn(`Could not get balance for ${token.symbol}:`, err.message);
+          }
+        }
+      }
+      
+      walletsList.appendChild(walletCard);
+    }
     
-    console.log(`✅ Populated withdraw dropdowns with ${walletsResult.wallets.length} wallet(s)`);
+    console.log(`✅ Loaded ${walletsResult.wallets.length} wallet(s) with balances`);
   } catch (error) {
-    console.error('Error populating withdraw wallets:', error);
+    console.error('Error loading wallets:', error);
+    const walletsList = document.getElementById('all-wallets-list');
+    if (walletsList) {
+      walletsList.innerHTML = '<div class="empty-state">⚠️ Error loading wallets</div>';
+    }
+  }
+}
+
+// Open withdraw modal
+function openWithdrawModal(type, fromWallet, balance, tokenMint = null, tokenSymbol = null, decimals = 9) {
+  const modal = document.getElementById('withdraw-modal');
+  const title = document.getElementById('withdraw-modal-title');
+  const amountLabel = document.getElementById('withdraw-modal-amount-label');
+  const amountInput = document.getElementById('withdraw-modal-amount');
+  const balanceHint = document.getElementById('withdraw-modal-balance-hint');
+  const toInput = document.getElementById('withdraw-modal-to');
+  const confirmBtn = document.getElementById('withdraw-modal-confirm-btn');
+  
+  if (!modal) return;
+  
+  // Set modal content based on type
+  if (type === 'sol') {
+    title.textContent = '💸 Withdraw SOL';
+    amountLabel.textContent = 'Amount (SOL)';
+    balanceHint.textContent = `Available: ${balance.toFixed(4)} SOL (min 0.001 SOL kept for rent)`;
+    amountInput.max = Math.max(0, balance - 0.001);
+    amountInput.value = Math.max(0, balance - 0.001).toFixed(4);
+  } else {
+    title.textContent = `💸 Withdraw ${tokenSymbol}`;
+    amountLabel.textContent = `Amount (${tokenSymbol})`;
+    balanceHint.textContent = `Available: ${balance.toFixed(4)} ${tokenSymbol}`;
+    amountInput.max = balance;
+    amountInput.value = balance.toFixed(4);
+  }
+  
+  // Clear previous inputs
+  toInput.value = '';
+  
+  // Remove old event listeners by cloning
+  const newConfirmBtn = confirmBtn.cloneNode(true);
+  confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+  
+  // Add new event listener
+  newConfirmBtn.addEventListener('click', async () => {
+    const amount = parseFloat(amountInput.value);
+    const toAddress = toInput.value.trim();
+    
+    if (!toAddress) {
+      showWithdrawStatus('Please enter a destination address', 'error');
+      return;
+    }
+    
+    if (amount <= 0 || amount > balance) {
+      showWithdrawStatus('Invalid amount', 'error');
+      return;
+    }
+    
+    showWithdrawStatus('Processing withdrawal...', 'info');
+    newConfirmBtn.disabled = true;
+    
+    try {
+      let result;
+      if (type === 'sol') {
+        result = await window.electron.wallet.withdrawSol(fromWallet, toAddress, amount);
+      } else {
+        result = await window.electron.wallet.withdrawToken(fromWallet, toAddress, tokenMint, amount);
+      }
+      
+      if (result.success) {
+        showWithdrawStatus(`✅ Withdrawal successful! Signature: ${result.signature.slice(0, 8)}...`, 'success');
+        setTimeout(() => {
+          hideModal('withdraw-modal');
+          loadAllWallets(); // Refresh wallet list
+        }, 2000);
+      } else {
+        showWithdrawStatus(`❌ Withdrawal failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      showWithdrawStatus(`❌ Error: ${error.message}`, 'error');
+    } finally {
+      newConfirmBtn.disabled = false;
+    }
+  });
+  
+  // Show modal
+  showModal('withdraw-modal');
+}
+
+// Show withdraw status message
+function showWithdrawStatus(message, type) {
+  const statusDiv = document.getElementById('withdraw-modal-status');
+  if (statusDiv) {
+    statusDiv.textContent = message;
+    statusDiv.className = `status-message ${type}`;
+    statusDiv.style.display = 'block';
+  }
+}
+
+// Setup withdraw modal
+function setupWithdrawModal() {
+  const cancelBtn = document.getElementById('withdraw-modal-cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      hideModal('withdraw-modal');
+    });
   }
 }
 
