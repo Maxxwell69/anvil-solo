@@ -277,7 +277,54 @@ function setupWalletPage() {
     refreshWalletsBtn.addEventListener('click', () => {
       console.log('Refreshing wallets...');
       loadAllWallets();
+      populateWithdrawWallets(); // Also refresh withdraw dropdowns
     });
+  }
+  
+  // Populate withdraw wallet dropdowns on page load
+  populateWithdrawWallets();
+}
+
+// Populate withdraw wallet dropdowns
+async function populateWithdrawWallets() {
+  try {
+    if (!window.electron || !window.electron.wallet) return;
+    
+    const walletsResult = await window.electron.wallet.getAllWithBalances();
+    
+    if (!walletsResult.success || !walletsResult.wallets) {
+      console.error('Failed to load wallets for withdraw dropdowns');
+      return;
+    }
+    
+    const solDropdown = document.getElementById('withdraw-sol-from');
+    const tokenDropdown = document.getElementById('withdraw-token-from');
+    
+    if (!solDropdown || !tokenDropdown) return;
+    
+    // Clear existing options (except first)
+    solDropdown.innerHTML = '<option value="">Select wallet...</option>';
+    tokenDropdown.innerHTML = '<option value="">Select wallet...</option>';
+    
+    // Add wallet options
+    walletsResult.wallets.forEach(wallet => {
+      const label = `${wallet.label || 'Wallet'} (${wallet.balance.toFixed(4)} SOL)`;
+      const pubkey = wallet.public_key;
+      
+      const solOption = document.createElement('option');
+      solOption.value = pubkey;
+      solOption.textContent = label;
+      solDropdown.appendChild(solOption);
+      
+      const tokenOption = document.createElement('option');
+      tokenOption.value = pubkey;
+      tokenOption.textContent = label;
+      tokenDropdown.appendChild(tokenOption);
+    });
+    
+    console.log(`✅ Populated withdraw dropdowns with ${walletsResult.wallets.length} wallet(s)`);
+  } catch (error) {
+    console.error('Error populating withdraw wallets:', error);
   }
 }
 
