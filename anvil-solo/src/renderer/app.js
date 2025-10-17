@@ -2372,9 +2372,8 @@ async function loadStrategies() {
               <button class="btn btn-small" onclick="stopStrategy(${strategy.id}, '${strategy.type}')" style="background: #e74c3c; min-width: 80px;">⏹️ Stop</button>
             ` : strategy.status === 'stopped' ? `
               <button class="btn btn-small" onclick="startStrategy(${strategy.id}, '${strategy.type}')" style="background: #27ae60; min-width: 80px;">▶️ Start</button>
-              <button class="btn btn-small" onclick="archiveStrategy(${strategy.id})" style="background: #3498db; min-width: 80px;">📦 Archive</button>
             ` : strategy.status === 'completed' ? `
-              <button class="btn btn-small" onclick="archiveStrategy(${strategy.id})" style="background: #3498db; min-width: 80px;">📦 Archive</button>
+              <span style="color: #27ae60; font-weight: 600;">✅ Completed</span>
             ` : ''}
             <button class="btn btn-small" onclick="confirmDeleteStrategy(${strategy.id}, '${strategy.type}', '${typeLabel}')" style="background: #dc2626; min-width: 80px;">🗑️ Delete</button>
           </div>
@@ -2447,27 +2446,40 @@ async function loadSyncPage() {
 async function loadSyncDataSummary() {
   try {
     // Get active strategies count
-    const strategiesResponse = await window.electron.strategy.getAll();
-    const activeStrategies = strategiesResponse.success ? strategiesResponse.strategies.length : 0;
+    let activeStrategies = 0;
+    if (window.electron?.strategy?.getAll) {
+      const strategiesResponse = await window.electron.strategy.getAll();
+      activeStrategies = strategiesResponse.success ? strategiesResponse.strategies.length : 0;
+    }
     
-    // Get total trades
-    const tradesResponse = await window.electron.trade.getAll();
-    const totalTrades = tradesResponse.success ? tradesResponse.trades.length : 0;
-    
-    // Calculate total volume
+    // Get total trades (from database directly)
+    let totalTrades = 0;
     let totalVolume = 0;
-    if (tradesResponse.success && tradesResponse.trades) {
-      totalVolume = tradesResponse.trades.reduce((sum, trade) => sum + (trade.amount || 0), 0);
+    if (window.electron?.database?.query) {
+      try {
+        const tradesResult = await window.electron.database.query('SELECT COUNT(*) as count, SUM(amount) as volume FROM trades');
+        if (tradesResult.success && tradesResult.rows && tradesResult.rows[0]) {
+          totalTrades = tradesResult.rows[0].count || 0;
+          totalVolume = tradesResult.rows[0].volume || 0;
+        }
+      } catch (err) {
+        console.warn('Could not query trades:', err);
+      }
     }
     
     // Get last sync time (from local storage)
     const lastSync = localStorage.getItem('lastSyncTime') || 'Never';
     
     // Update UI
-    document.getElementById('sync-active-strategies').textContent = activeStrategies;
-    document.getElementById('sync-total-trades').textContent = totalTrades.toLocaleString();
-    document.getElementById('sync-total-volume').textContent = totalVolume.toFixed(2) + ' SOL';
-    document.getElementById('sync-last-sync').textContent = lastSync;
+    const activeStrategiesEl = document.getElementById('sync-active-strategies');
+    const totalTradesEl = document.getElementById('sync-total-trades');
+    const totalVolumeEl = document.getElementById('sync-total-volume');
+    const lastSyncEl = document.getElementById('sync-last-sync');
+    
+    if (activeStrategiesEl) activeStrategiesEl.textContent = activeStrategies;
+    if (totalTradesEl) totalTradesEl.textContent = totalTrades.toLocaleString();
+    if (totalVolumeEl) totalVolumeEl.textContent = totalVolume.toFixed(2) + ' SOL';
+    if (lastSyncEl) lastSyncEl.textContent = lastSync;
     
   } catch (error) {
     console.error('Error loading sync data summary:', error);
@@ -2591,30 +2603,49 @@ async function collectSyncData() {
     timestamp: new Date().toISOString(),
     strategies: [],
     trades: [],
+    transactions: [],
     settings: {},
     version: '3.6.0'
   };
   
   try {
     // Get strategies
-    const strategiesResponse = await window.electron.strategy.getAll();
-    if (strategiesResponse.success) {
-      data.strategies = strategiesResponse.strategies;
+    if (window.electron?.strategy?.getAll) {
+      const strategiesResponse = await window.electron.strategy.getAll();
+      if (strategiesResponse.success) {
+        data.strategies = strategiesResponse.strategies;
+      }
     }
     
-    // Get trades
-    const tradesResponse = await window.electron.trade.getAll();
-    if (tradesResponse.success) {
-      data.trades = tradesResponse.trades;
+    // Get all data from database
+    if (window.electron?.database?.query) {
+      try {
+        // Get trades
+        const tradesResult = await window.electron.database.query('SELECT * FROM trades ORDER BY created_at DESC LIMIT 1000');
+        if (tradesResult.success && tradesResult.rows) {
+          data.trades = tradesResult.rows;
+        }
+        
+        // Get transactions
+        const txResult = await window.electron.database.query('SELECT * FROM transactions ORDER BY timestamp DESC LIMIT 1000');
+        if (txResult.success && txResult.rows) {
+          data.transactions = txResult.rows;
+        }
+        
+        // Get settings
+        const settingsResult = await window.electron.database.query('SELECT * FROM settings');
+        if (settingsResult.success && settingsResult.rows) {
+          data.settings = settingsResult.rows.reduce((acc, row) => {
+            acc[row.key] = row.value;
+            return acc;
+          }, {});
+        }
+      } catch (err) {
+        console.warn('Error querying database:', err);
+      }
     }
     
-    // Get settings
-    const settingsResponse = await window.electron.settings.getAll();
-    if (settingsResponse.success) {
-      data.settings = settingsResponse.settings;
-    }
-    
-    console.log(`✅ Collected ${data.strategies.length} strategies, ${data.trades.length} trades`);
+    console.log(`✅ Collected ${data.strategies.length} strategies, ${data.trades.length} trades, ${data.transactions.length} transactions`);
     return data;
     
   } catch (error) {
@@ -2746,78 +2777,7 @@ async function stopStrategy(strategyId, type) {
   }
 }
 
-// Archive strategy (soft delete - keeps all data)
-let strategyToArchive = null;
-
-function archiveStrategy(strategyId) {
-  // Store the strategy ID
-  strategyToArchive = strategyId;
-  
-  // Clear previous notes
-  document.getElementById('archive-notes').value = '';
-  document.getElementById('archive-error').style.display = 'none';
-  
-  // Show the archive modal
-  showModal('archive-modal');
-}
-
-// Setup archive modal handlers (called on DOM load)
-document.addEventListener('DOMContentLoaded', () => {
-  // Archive confirm button
-  const archiveConfirmBtn = document.getElementById('archive-confirm-btn');
-  if (archiveConfirmBtn) {
-    archiveConfirmBtn.addEventListener('click', async () => {
-      if (strategyToArchive === null) return;
-      
-      const notes = document.getElementById('archive-notes').value.trim();
-      const errorEl = document.getElementById('archive-error');
-      
-      try {
-        archiveConfirmBtn.disabled = true;
-        archiveConfirmBtn.textContent = 'Archiving...';
-        errorEl.style.display = 'none';
-        
-        console.log(`Archiving strategy #${strategyToArchive}`);
-        const result = await window.electron.strategy.archive(strategyToArchive, notes || undefined);
-        
-        if (result.success) {
-          console.log('✅ Strategy archived');
-          hideModal('archive-modal');
-          
-          // Show success message
-          showSuccessMessage(`
-            <h3>✅ Strategy #${strategyToArchive} Archived!</h3>
-            <p>All data has been preserved and stored locally.</p>
-            <p style="color: #3498db;">View it in the <strong>Archive</strong> section.</p>
-            ${notes ? `<p style="color: #95a5a6; font-size: 13px; margin-top: 10px;">Notes: "${notes}"</p>` : ''}
-          `);
-          
-          strategyToArchive = null;
-          loadStrategies(); // Refresh list
-        } else {
-          errorEl.textContent = `❌ Failed to archive: ${result.error}`;
-          errorEl.style.display = 'block';
-        }
-      } catch (error) {
-        console.error('Error archiving strategy:', error);
-        errorEl.textContent = `❌ Error: ${error.message}`;
-        errorEl.style.display = 'block';
-      } finally {
-        archiveConfirmBtn.disabled = false;
-        archiveConfirmBtn.textContent = '📦 Archive Strategy';
-      }
-    });
-  }
-  
-  // Archive cancel button
-  const archiveCancelBtn = document.getElementById('archive-cancel-btn');
-  if (archiveCancelBtn) {
-    archiveCancelBtn.addEventListener('click', () => {
-      hideModal('archive-modal');
-      strategyToArchive = null;
-    });
-  }
-});
+// Archive functionality removed - replaced with Data Sync system
 
 // Permanently delete strategy (use with extreme caution)
 async function deleteStrategy(strategyId) {
@@ -2828,7 +2788,7 @@ async function deleteStrategy(strategyId) {
     `  • All transaction history\n` +
     `  • All activity logs\n` +
     `  • Fee records\n\n` +
-    `💡 TIP: Use "Archive" instead to keep data!\n\n` +
+    `💡 TIP: Use "Data Sync" to backup before deleting!\n\n` +
     `Are you ABSOLUTELY SURE?`
   )) {
     return;
@@ -2856,28 +2816,7 @@ async function deleteStrategy(strategyId) {
   }
 }
 
-// Restore archived strategy
-async function restoreStrategy(strategyId) {
-  if (!confirm(`Restore Strategy #${strategyId} from archive?`)) {
-    return;
-  }
-  
-  try {
-    console.log(`Restoring strategy #${strategyId}`);
-    const result = await window.electron.strategy.restore(strategyId);
-    
-    if (result.success) {
-      console.log('✅ Strategy restored');
-      alert('✅ Strategy restored successfully!');
-      loadArchivedStrategies(); // Refresh archive list
-    } else {
-      alert(`Failed to restore strategy: ${result.error}`);
-    }
-  } catch (error) {
-    console.error('Error restoring strategy:', error);
-    alert(`Error: ${error.message}`);
-  }
-}
+// Restore functionality removed - replaced with Data Sync system
 
 // ============================================================================
 // ACTIVITY LOG MANAGEMENT
@@ -3558,10 +3497,18 @@ function confirmDeleteStrategy(strategyId, strategyType, typeLabel) {
   
   document.getElementById('delete-strategy-confirm-btn').addEventListener('click', async () => {
     if (strategyToDelete) {
-      await deleteStrategy(strategyToDelete.id);
-      hideModal('delete-strategy-modal');
-      deleteModal.remove();
-      strategyToDelete = null;
+      try {
+        await deleteStrategy(strategyToDelete.id);
+        // Close modal and refresh after successful deletion
+        hideModal('delete-strategy-modal');
+        deleteModal.remove();
+        strategyToDelete = null;
+        // Refresh the dashboard
+        await loadStrategies();
+      } catch (error) {
+        console.error('Error in delete confirmation:', error);
+        alert('Failed to delete strategy: ' + error.message);
+      }
     }
   });
   
@@ -3610,9 +3557,6 @@ window.copyToClipboard = copyToClipboard;
 window.startStrategy = startStrategy;
 window.pauseStrategy = pauseStrategy;
 window.stopStrategy = stopStrategy;
-window.archiveStrategy = archiveStrategy;
-window.restoreStrategy = restoreStrategy;
-window.syncToCloud = syncToCloud;
 window.deleteStrategy = deleteStrategy;
 window.deleteToken = deleteToken;
 window.selectJupiterToken = selectJupiterToken;
