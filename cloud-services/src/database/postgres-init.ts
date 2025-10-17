@@ -82,13 +82,24 @@ export async function initDatabase() {
   
   // Add activated_by_user column if it doesn't exist (migration)
   try {
-    await sql`
-      ALTER TABLE licenses ADD COLUMN IF NOT EXISTS activated_by_user BOOLEAN DEFAULT FALSE
+    // Check if column exists first
+    const result = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'licenses' AND column_name = 'activated_by_user'
     `;
-    console.log('✅ Added activated_by_user column to licenses table');
+    
+    if (result.length === 0) {
+      // Column doesn't exist, add it
+      await sql`
+        ALTER TABLE licenses ADD COLUMN activated_by_user BOOLEAN DEFAULT FALSE
+      `;
+      console.log('✅ Added activated_by_user column to licenses table');
+    } else {
+      console.log('ℹ️  activated_by_user column already exists');
+    }
   } catch (err) {
-    // Column might already exist, that's OK
-    console.log('ℹ️  activated_by_user column already exists or error adding it');
+    console.error('⚠️  Error checking/adding activated_by_user column:', err);
   }
   
   await sql`

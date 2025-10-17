@@ -32,63 +32,46 @@ const validateSchema = Joi.object({
  */
 router.post('/activate', async (req, res) => {
   try {
-    const { error, value } = activateSchema.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+    const validationResult = activateSchema.validate(req.body);
+    if (validationResult.error) {
+      return res.status(400).json({ error: validationResult.error.details[0].message });
     }
     
-    const { licenseKey, hardwareId, email } = value;
-    const sql = getDatabase(); // PostgreSQL connection
+    const licenseKey = req.body.licenseKey;
+    const hardwareId = req.body.hardwareId;
+    const email = req.body.email;
+    
+    const sql = getDatabase();
     
     // Check if license exists
-    const [license] = await sql`
-      SELECT * FROM licenses WHERE license_key = ${licenseKey}
-    `;
+    const query1 = 'SELECT * FROM licenses WHERE license_key = $1';
+    const licenses = await sql.unsafe(query1, [licenseKey]);
+    const license = licenses[0];
     
     if (!license) {
-      return res.status(404).json({ 
-        error: 'Invalid license key',
-        valid: false
-      });
+      return res.status(404).json({ error: 'Invalid license key', valid: false });
     }
     
     // Check if already activated on different hardware
     if (license.hardware_id && license.hardware_id !== hardwareId) {
-      return res.status(403).json({ 
-        error: 'License already activated on different device',
-        valid: false
-      });
+      return res.status(403).json({ error: 'License already activated on different device', valid: false });
     }
     
     // Check if expired
     if (license.expires_at && new Date(license.expires_at) < new Date()) {
-      return res.status(403).json({ 
-        error: 'License has expired',
-        valid: false
-      });
+      return res.status(403).json({ error: 'License has expired', valid: false });
     }
     
     // Activate license
-    await sql`
-      UPDATE licenses 
-      SET hardware_id = ${hardwareId}, 
-          email = COALESCE(${email}, email),
-          activated_at = COALESCE(activated_at, CURRENT_TIMESTAMP),
-          last_validated = CURRENT_TIMESTAMP,
-          status = 'active',
-          activated_by_user = TRUE
-      WHERE license_key = ${licenseKey}
-    `;
+    const query2 = 'UPDATE licenses SET hardware_id = $1, email = COALESCE($2, email), activated_at = COALESCE(activated_at, CURRENT_TIMESTAMP), last_validated = CURRENT_TIMESTAMP, status = $3, activated_by_user = TRUE WHERE license_key = $4';
+    await sql.unsafe(query2, [hardwareId, email, 'active', licenseKey]);
     
     // Get updated license
-    const [updatedLicense] = await sql`
-      SELECT * FROM licenses WHERE license_key = ${licenseKey}
-    `;
+    const query3 = 'SELECT * FROM licenses WHERE license_key = $1';
+    const updatedLicenses = await sql.unsafe(query3, [licenseKey]);
+    const updatedLicense = updatedLicenses[0];
     
-    console.log(`✅ License activated: ${licenseKey} by user with email: ${email || updatedLicense.email}`);
-    console.log(`   Hardware ID: ${hardwareId}`);
-    console.log(`   Tier: ${updatedLicense.tier}`);
-    console.log(`   Max Strategies: ${updatedLicense.max_strategies}`);
+    console.log('License activated:', licenseKey);
     
     res.json({
       valid: true,
@@ -112,43 +95,37 @@ router.post('/activate', async (req, res) => {
  */
 router.post('/validate', async (req, res) => {
   try {
-    const { error, value } = validateSchema.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
+    const validationResult = validateSchema.validate(req.body);
+    if (validationResult.error) {
+      return res.status(400).json({ error: validationResult.error.details[0].message });
     }
     
-    const { licenseKey, hardwareId } = value;
-    const sql = getDatabase(); // PostgreSQL connection
+    const licenseKey = req.body.licenseKey;
+    const hardwareId = req.body.hardwareId;
+    const sql = getDatabase();
     
-    const [license] = await sql`
-      SELECT * FROM licenses WHERE license_key = ${licenseKey}
-    `;
+    const query1 = 'SELECT * FROM licenses WHERE license_key = $1';
+    const licenses = await sql.unsafe(query1, [licenseKey]);
+    const license = licenses[0];
     
     if (!license) {
       return res.json({ valid: false, error: 'Invalid license key' });
     }
     
-    // Check hardware ID match
     if (license.hardware_id && license.hardware_id !== hardwareId) {
       return res.json({ valid: false, error: 'Hardware mismatch' });
     }
     
-    // Check expiration
     if (license.expires_at && new Date(license.expires_at) < new Date()) {
       return res.json({ valid: false, error: 'License expired' });
     }
     
-    // Check status
     if (license.status !== 'active') {
       return res.json({ valid: false, error: 'License not active' });
     }
     
-    // Update last validated
-    await sql`
-      UPDATE licenses 
-      SET last_validated = CURRENT_TIMESTAMP 
-      WHERE license_key = ${licenseKey}
-    `;
+    const query2 = 'UPDATE licenses SET last_validated = CURRENT_TIMESTAMP WHERE license_key = $1';
+    await sql.unsafe(query2, [licenseKey]);
     
     res.json({
       valid: true,
@@ -172,18 +149,16 @@ router.post('/validate', async (req, res) => {
  */
 router.post('/generate', async (req, res) => {
   try {
-    // TODO: Add admin authentication
     const adminKey = req.headers['x-admin-key'];
     if (adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     
-    const { tier = 'starter', email } = req.body;
+    const tier = req.body.tier || 'starter';
+    const email = req.body.email;
     
-    // Generate license key
-    const licenseKey = `ANVIL-${crypto.randomBytes(16).toString('hex').toUpperCase()}`;
+    const licenseKey = 'ANVIL-' + crypto.randomBytes(16).toString('hex').toUpperCase();
     
-    // Set limits based on tier
     const tierLimits: Record<string, { maxStrategies: number; maxWallets: number }> = {
       starter: { maxStrategies: 3, maxWallets: 3 },
       pro: { maxStrategies: 10, maxWallets: 10 },
@@ -191,18 +166,11 @@ router.post('/generate', async (req, res) => {
     };
     const limits = tierLimits[tier] || { maxStrategies: 3, maxWallets: 3 };
     
-    const sql = getDatabase(); // PostgreSQL connection
-    await sql`
-      INSERT INTO licenses (license_key, tier, max_strategies, max_wallets, email, status)
-      VALUES (${licenseKey}, ${tier}, ${limits.maxStrategies}, ${limits.maxWallets}, ${email}, 'active')
-    `;
+    const sql = getDatabase();
+    const query = 'INSERT INTO licenses (license_key, tier, max_strategies, max_wallets, email, status) VALUES ($1, $2, $3, $4, $5, $6)';
+    await sql.unsafe(query, [licenseKey, tier, limits.maxStrategies, limits.maxWallets, email, 'active']);
     
-    res.json({
-      success: true,
-      licenseKey,
-      tier,
-      limits
-    });
+    res.json({ success: true, licenseKey, tier, limits });
   } catch (err: any) {
     console.error('Generate error:', err);
     res.status(500).json({ error: 'Internal server error', details: err.message });
@@ -220,14 +188,11 @@ router.post('/deactivate', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized' });
     }
     
-    const { licenseKey } = req.body;
-    const sql = getDatabase(); // PostgreSQL connection
+    const licenseKey = req.body.licenseKey;
+    const sql = getDatabase();
     
-    await sql`
-      UPDATE licenses 
-      SET status = 'deactivated' 
-      WHERE license_key = ${licenseKey}
-    `;
+    const query = 'UPDATE licenses SET status = $1 WHERE license_key = $2';
+    await sql.unsafe(query, ['deactivated', licenseKey]);
     
     res.json({ success: true, message: 'License deactivated' });
   } catch (err: any) {
