@@ -412,7 +412,9 @@ export class BundleReconcileStrategy {
     if (this.config.useMultipleWallets) {
       return [this.wallet.getMainKeypair(), ...this.wallet.getDerivedKeypairs()];
     }
-    return [this.wallet.getMainKeypair()];
+    // Use the selected wallet from config, or main wallet if not specified
+    const selectedKeypair = this.wallet.getKeypairByWalletId(this.config.walletId);
+    return [selectedKeypair];
   }
 
   /**

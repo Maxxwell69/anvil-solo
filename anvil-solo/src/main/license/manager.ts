@@ -2,7 +2,7 @@ import { machineIdSync } from 'node-machine-id';
 import fetch from 'cross-fetch';
 import { getDatabase } from '../database/schema';
 
-const LICENSE_API_URL = process.env.LICENSE_API_URL || 'https://pure-analysis.up.railway.app';
+const LICENSE_API_URL = process.env.LICENSE_API_URL || 'https://anvil.shoguncrypto.com';
 
 export enum LicenseTier {
   FREE = 'free',
@@ -129,17 +129,22 @@ export class LicenseManager {
    */
   async activateLicense(licenseKey: string): Promise<{ success: boolean; message: string; license?: LicenseInfo }> {
     try {
+      console.log(`Activating license: ${licenseKey} for HWID: ${this.hwid}`);
+      
       const response = await fetch(`${LICENSE_API_URL}/api/license/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           licenseKey,
-          hwid: this.hwid,
+          hardwareId: this.hwid, // Changed from 'hwid' to 'hardwareId' to match backend
         }),
       });
 
+      console.log(`Response status: ${response.status}`);
+
       if (!response.ok) {
         const error = await response.json();
+        console.error('Activation error from server:', error);
         return {
           success: false,
           message: error.error || 'License activation failed',
@@ -147,26 +152,46 @@ export class LicenseManager {
       }
 
       const data = await response.json();
+      console.log('Activation response:', data);
 
-      // Save license to database
+      // Backend returns { valid, activated, license: {...} }
+      if (!data.valid || !data.activated) {
+        return {
+          success: false,
+          message: 'License activation failed - invalid response from server',
+        };
+      }
+
+      const license = data.license;
+      
+      // Map backend tier features
+      const features = {
+        maxActiveStrategies: license.maxStrategies || 1,
+        maxWallets: license.maxWallets || 1,
+        strategyTypes: ['dca', 'ratio', 'bundle'], // All types allowed for paid licenses
+        cloudBackup: true,
+        prioritySupport: license.tier !== 'starter',
+      };
+
+      // Save license to database (token not used in this version)
       this.db.prepare(`
         INSERT OR REPLACE INTO license (id, license_key, tier, token, features, expires_at, activated_at, last_validated)
         VALUES (1, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         licenseKey,
-        data.tier,
-        data.token,
-        JSON.stringify(data.features),
-        data.expiresAt,
+        license.tier,
+        licenseKey, // Use license key as token for now
+        JSON.stringify(features),
+        license.expiresAt,
         new Date().toISOString(),
         new Date().toISOString()
       );
 
       // Update current license
       this.currentLicense = {
-        tier: data.tier,
-        features: data.features,
-        expiresAt: data.expiresAt,
+        tier: license.tier,
+        features: features,
+        expiresAt: license.expiresAt,
         isValid: true,
         lastValidated: new Date(),
       };
@@ -190,22 +215,28 @@ export class LicenseManager {
    */
   async validateLicense(token?: string): Promise<boolean> {
     try {
-      // Get token from database if not provided
-      if (!token) {
-        const result = this.db.prepare('SELECT token FROM license WHERE id = 1').get();
-        if (!result || !result.token) {
-          return false;
-        }
-        token = result.token;
+      // Get license key and hardware ID from database
+      const result = this.db.prepare('SELECT license_key FROM license WHERE id = 1').get();
+      if (!result || !result.license_key) {
+        console.log('No license key found in database');
+        return false;
       }
+
+      console.log(`Validating license: ${result.license_key} with HWID: ${this.hwid}`);
 
       const response = await fetch(`${LICENSE_API_URL}/api/license/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ 
+          licenseKey: result.license_key,
+          hardwareId: this.hwid
+        }),
       });
 
+      console.log(`Validation response status: ${response.status}`);
+
       if (!response.ok) {
+        console.log('Validation failed - resetting to free tier');
         this.currentLicense = {
           tier: LicenseTier.FREE,
           features: FREE_TIER_FEATURES,
@@ -217,25 +248,44 @@ export class LicenseManager {
       }
 
       const data = await response.json();
+      console.log('Validation response:', data);
+
+      if (!data.valid) {
+        console.log('License marked as invalid by server');
+        return false;
+      }
+
+      const license = data.license;
+
+      // Map backend tier features
+      const features = {
+        maxActiveStrategies: license.maxStrategies || 1,
+        maxWallets: license.maxWallets || 1,
+        strategyTypes: ['dca', 'ratio', 'bundle'],
+        cloudBackup: true,
+        prioritySupport: license.tier !== 'starter',
+      };
 
       // Update license in database
       this.db.prepare(`
-        UPDATE license SET last_validated = ?, features = ?, expires_at = ? WHERE id = 1
+        UPDATE license SET last_validated = ?, features = ?, expires_at = ?, tier = ? WHERE id = 1
       `).run(
         new Date().toISOString(),
-        JSON.stringify(data.features),
-        data.expiresAt
+        JSON.stringify(features),
+        license.expiresAt,
+        license.tier
       );
 
       // Update current license
       this.currentLicense = {
-        tier: data.tier,
-        features: data.features,
-        expiresAt: data.expiresAt,
+        tier: license.tier,
+        features: features,
+        expiresAt: license.expiresAt,
         isValid: true,
         lastValidated: new Date(),
       };
 
+      console.log('License validated successfully:', this.currentLicense);
       return true;
     } catch (error) {
       console.error('License validation error:', error);

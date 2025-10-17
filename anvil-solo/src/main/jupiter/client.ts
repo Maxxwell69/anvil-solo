@@ -6,8 +6,8 @@ const JUPITER_API_V6 = 'https://quote-api.jup.ag/v6'; // Primary - most reliable
 const JUPITER_API_FALLBACK = 'https://public.jupiterapi.com/v6'; // Public mirror
 const JUPITER_API_FALLBACK2 = 'https://lite-api.jup.ag/v6'; // Lite version (may have limited routes)
 
-// Additional fallback using direct IP if DNS fails (CloudFlare CDN)
-const JUPITER_API_IP_FALLBACK = 'https://104.26.9.40/v6'; // quote-api IP (update as needed)
+// Note: Removed IP fallback (104.26.9.40) as it causes SSL handshake errors
+// DNS is now configured to use Google DNS (8.8.8.8) and Cloudflare (1.1.1.1) in main.ts
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
@@ -167,7 +167,7 @@ export class JupiterClient {
     const { inputMint, outputMint, amount, slippageBps = 50, onlyDirectRoutes = false } = params;
 
     // Try all endpoints: Primary, public mirror, lite version, then IP fallback
-    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK, JUPITER_API_FALLBACK2, JUPITER_API_IP_FALLBACK];
+    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK, JUPITER_API_FALLBACK2];
     let lastError: any;
     
     for (const apiUrl of apiUrls) {
@@ -536,7 +536,7 @@ export class JupiterClient {
     console.log('🔍 Testing Jupiter API connectivity...');
     
     // Try all endpoints including IP fallback
-    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK, JUPITER_API_FALLBACK2, JUPITER_API_IP_FALLBACK];
+    const apiUrls = [JUPITER_API_V6, JUPITER_API_FALLBACK, JUPITER_API_FALLBACK2];
     let dnsErrorCount = 0;
     let timeoutErrorCount = 0;
     let otherErrorCount = 0;

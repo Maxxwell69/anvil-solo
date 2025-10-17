@@ -12,6 +12,7 @@
   <div id="unlock-screen" class="screen active">
     <div class="unlock-container">
       <h1>🔒 Anvil Solo</h1>
+      <p class="version-splash">v3.3.9</p>
       <p>Unlock your wallet to continue</p>
       <div class="form-group">
         <div class="password-input-wrapper">
@@ -21,10 +22,6 @@
           </button>
         </div>
         <button id="unlock-btn" class="btn btn-primary">Unlock Wallet</button>
-      </div>
-      <div class="form-group">
-        <button id="generate-wallet-btn" class="btn btn-secondary">Generate New Wallet</button>
-        <button id="import-wallet-btn" class="btn btn-secondary">Import Wallet</button>
       </div>
       <div id="unlock-error" class="error-message"></div>
     </div>
@@ -139,7 +136,7 @@
     <div class="sidebar">
       <div class="logo">
         <h2>⚡ Anvil Solo</h2>
-        <span class="version-badge" id="app-version">v3.1.3</span>
+        <span class="version-badge" id="app-version">v3.3.9</span>
       </div>
       <nav class="nav">
         <a href="#" class="nav-item active" data-page="dashboard">
@@ -160,14 +157,17 @@
         <a href="#" class="nav-item" data-page="trades">
           <span>📊</span> Trades & Volume
         </a>
-        <a href="#" class="nav-item" data-page="activity">
-          <span>📋</span> Activity Log
-        </a>
         <a href="#" class="nav-item" data-page="archive">
           <span>📦</span> Archive
         </a>
         <a href="#" class="nav-item" data-page="wallet">
           <span>💰</span> Wallet
+        </a>
+        <a href="#" class="nav-item" data-page="monitor">
+          <span>📊</span> Monitor
+        </a>
+        <a href="#" class="nav-item" data-page="diagnostics">
+          <span>🔧</span> Diagnostics
         </a>
         <a href="#" class="nav-item" data-page="settings">
           <span>⚙️</span> Settings
@@ -473,6 +473,16 @@
             </label>
           </div>
 
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ratio-round-trip" />
+              🔀 Round-Trip Mode (Reverses buy/sell pattern after each cycle)
+            </label>
+            <small style="color: #8892a6; margin-left: 25px; display: block; margin-top: 5px;">
+              Example: Buy 3, Sell 2 → Then Sell 3, Buy 2 → Buy 3, Sell 2 → Repeats until SOL limit
+            </small>
+          </div>
+
           <div class="form-actions">
             <button id="create-ratio-btn" class="btn btn-primary">Create Ratio Strategy</button>
             <button class="btn btn-secondary" onclick="showPage('dashboard')">Cancel</button>
@@ -710,35 +720,6 @@
         </div>
       </div>
 
-      <!-- Activity Log Page -->
-      <div id="activity-page" class="page">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h1>Activity Log</h1>
-          <button id="refresh-activity-btn" class="btn btn-small" style="background: #3498db;">
-            🔄 Refresh
-          </button>
-        </div>
-        
-        <div class="section">
-          <div class="form-row" style="margin-bottom: 15px;">
-            <div class="form-group">
-              <label>Filter by Category</label>
-              <select id="activity-filter-category">
-                <option value="">All Categories</option>
-                <option value="strategy">Strategies</option>
-                <option value="trade">Trades</option>
-                <option value="wallet">Wallets</option>
-                <option value="system">System</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <div id="activity-log-list" class="activity-log">
-          <div class="empty-state">Loading activity...</div>
-        </div>
-      </div>
-
       <!-- Wallet Page -->
       <div id="wallet-page" class="page">
         <h1>Wallet Management</h1>
@@ -841,6 +822,134 @@
       </div>
 
       <!-- Settings Page -->
+      <!-- Monitor Page -->
+      <div id="monitor-page" class="page">
+        <h1>📊 Live Monitor</h1>
+        
+        <!-- Summary Cards -->
+        <div class="stats-grid" style="margin-bottom: 30px;">
+          <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-details">
+              <div class="stat-label">Active Strategies</div>
+              <div class="stat-value" id="monitor-active-count">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-details">
+              <div class="stat-label">Trades Today</div>
+              <div class="stat-value" id="monitor-trades-today">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-details">
+              <div class="stat-label">Success Rate</div>
+              <div class="stat-value" id="monitor-success-rate">-</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-details">
+              <div class="stat-label">Fees Collected</div>
+              <div class="stat-value" id="monitor-fees-collected">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Strategy Status -->
+        <div class="section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Active Strategies</h2>
+            <button id="monitor-refresh-btn" class="btn btn-small">🔄 Refresh</button>
+          </div>
+          <div id="monitor-strategies-list">
+            <div class="empty-state">Loading strategies...</div>
+          </div>
+        </div>
+
+        <!-- Recent Trades -->
+        <div class="section">
+          <h2>Recent Trades (Last 20)</h2>
+          <div id="monitor-recent-trades">
+            <div class="empty-state">Loading trades...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Diagnostics Page -->
+      <div id="diagnostics-page" class="page">
+        <h1>🔧 System Diagnostics</h1>
+        
+        <!-- System Health -->
+        <div class="section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>System Health</h2>
+            <div>
+              <button id="run-diagnostics-btn" class="btn btn-primary">▶️ Run Full Diagnostic</button>
+              <button id="export-logs-btn" class="btn btn-secondary">📤 Export Logs</button>
+            </div>
+          </div>
+          
+          <div id="health-status-summary" class="health-summary">
+            <div class="health-indicator">
+              <span class="health-icon">🔄</span>
+              <span class="health-text">Click "Run Full Diagnostic" to check system health</span>
+            </div>
+          </div>
+
+          <div id="health-checks-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px;">
+            <!-- Health checks will be populated here -->
+          </div>
+        </div>
+
+        <!-- Issues Detected -->
+        <div class="section">
+          <h2>Issues Detected</h2>
+          <div id="issues-list">
+            <div class="empty-state">No issues detected</div>
+          </div>
+        </div>
+
+        <!-- Version Information -->
+        <div class="section">
+          <h2>Version Information</h2>
+          <div class="version-info-card">
+            <div class="version-row">
+              <span class="version-label">Current Version:</span>
+              <span class="version-value" id="diag-current-version">v3.3.9</span>
+            </div>
+            <div class="version-row">
+              <span class="version-label">Latest Available:</span>
+              <span class="version-value" id="diag-latest-version">Checking...</span>
+            </div>
+            <div class="version-row">
+              <span class="version-label">Status:</span>
+              <span class="version-value" id="diag-version-status">-</span>
+            </div>
+            <div style="margin-top: 15px;">
+              <button id="check-updates-btn" class="btn btn-secondary">🔍 Check for Updates</button>
+              <button id="view-changelog-btn" class="btn btn-secondary">📜 View Changelog</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Logs -->
+        <div class="section">
+          <h2>System Logs</h2>
+          <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button id="view-activity-logs-btn" class="btn btn-small">📋 Activity Logs</button>
+            <button id="view-error-logs-btn" class="btn btn-small">❌ Error Logs</button>
+            <button id="view-performance-logs-btn" class="btn btn-small">⚡ Performance Logs</button>
+            <button id="clear-logs-btn" class="btn btn-small btn-danger">🗑️ Clear Old Logs</button>
+          </div>
+          <div id="diagnostic-logs-display" class="logs-container">
+            <div class="empty-state">Select a log type to view</div>
+          </div>
+        </div>
+      </div>
+
       <div id="settings-page" class="page">
         <h1>Settings</h1>
         
@@ -908,10 +1017,6 @@
                   <span style="color: #8892a6;">Fee Percentage:</span>
                   <span id="fee-percentage" style="font-weight: 600; color: #667eea;">0.5%</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="color: #8892a6;">Fee Wallet:</span>
-                  <span id="fee-wallet" style="font-size: 12px; font-family: monospace; color: #a0aec0;">Loading...</span>
-                </div>
                 <div style="border-top: 1px solid #3a3f56; padding-top: 15px; margin-top: 5px;">
                   <p style="color: #8892a6; font-size: 14px; margin: 0;">
                     💡 A small fee is collected on each trade to support development and maintenance of Anvil Solo.
@@ -929,8 +1034,9 @@
               <label>License Key</label>
               <input type="text" id="license-key-input" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" class="input">
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
               <button id="activate-license-btn" class="btn btn-primary">Activate License</button>
+              <button id="test-license-connection-btn" class="btn btn-secondary" style="background: #3498db;">🔌 Test Connection</button>
               <button id="validate-license-btn" class="btn btn-secondary">Re-validate</button>
               <button id="deactivate-license-btn" class="btn btn-danger">Deactivate</button>
             </div>
@@ -991,29 +1097,8 @@
     </div>
   </div>
 
-  <!-- Hidden DevTools Button -->
-  <div id="devtools-button" class="devtools-button" title="Open DevTools (Debug Mode)">
-    🔧
-  </div>
-
-  <!-- Real-time Activity Feed -->
-  <div id="activity-feed" class="activity-feed">
-    <div class="activity-feed-header">
-      <h3>📋 Live Activity</h3>
-      <div class="activity-feed-controls">
-        <button id="activity-feed-toggle" class="btn btn-small" title="Toggle Activity Feed">📋</button>
-        <button id="activity-feed-clear" class="btn btn-small" title="Clear Activity">🗑️</button>
-      </div>
-    </div>
-    <div id="activity-feed-content" class="activity-feed-content">
-      <div class="activity-item">
-        <span class="activity-time">Just now</span>
-        <span class="activity-message">📊 Activity feed ready - watching for trades...</span>
-      </div>
-    </div>
-  </div>
-
   <script src="app.js"></script>
+  <script src="monitoring.js"></script>
 </body>
 </html>
 

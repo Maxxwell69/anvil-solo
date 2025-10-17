@@ -69,6 +69,8 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.invoke('license:deactivate'),
     getHwid: () => 
       ipcRenderer.invoke('license:getHwid'),
+    testConnection: () => 
+      ipcRenderer.invoke('license:testConnection'),
   },
 
   // DevTools
@@ -175,6 +177,16 @@ contextBridge.exposeInMainWorld('electron', {
   stats: {
     getDashboard: () => 
       ipcRenderer.invoke('stats:getDashboard'),
+  },
+
+  // System diagnostics
+  system: {
+    getInfo: () => 
+      ipcRenderer.invoke('system:getInfo'),
+    testInternet: () => 
+      ipcRenderer.invoke('system:testInternet'),
+    testDNS: () => 
+      ipcRenderer.invoke('system:testDNS'),
   },
 });
 

@@ -64,17 +64,36 @@ export class WalletManager {
 
     // Save to database
     const db = getDatabase();
-    const stmt = db.prepare(`
-      INSERT INTO wallets (encrypted_private_key, public_key, is_main, label, created_at)
-      VALUES (?, ?, TRUE, ?, ?)
-    `);
+    
+    // Check if we already have a main wallet
+    const existingMain = db.prepare('SELECT id FROM wallets WHERE is_main = TRUE').get();
+    
+    if (existingMain) {
+      // Create as imported/derived wallet (not main)
+      const stmt = db.prepare(`
+        INSERT INTO wallets (encrypted_private_key, public_key, is_main, label, created_at)
+        VALUES (?, ?, FALSE, ?, ?)
+      `);
+      stmt.run(encrypted, keypair.publicKey.toBase58(), label || 'Imported Wallet', Date.now());
+      
+      // Add to derived keypairs map so strategies can use it
+      this.derivedKeypairs.set(keypair.publicKey.toBase58(), keypair);
+      
+      console.log('✅ Wallet imported as derived wallet:', keypair.publicKey.toBase58());
+    } else {
+      // First wallet - create as main wallet
+      const stmt = db.prepare(`
+        INSERT INTO wallets (encrypted_private_key, public_key, is_main, label, created_at)
+        VALUES (?, ?, TRUE, ?, ?)
+      `);
+      stmt.run(encrypted, keypair.publicKey.toBase58(), label || 'Main Wallet', Date.now());
+      
+      this.mainKeypair = keypair;
+      this.currentPassword = password;
+      
+      console.log('✅ Wallet imported as main wallet:', keypair.publicKey.toBase58());
+    }
 
-    stmt.run(encrypted, keypair.publicKey.toBase58(), label || 'Main Wallet', Date.now());
-
-    this.mainKeypair = keypair;
-    this.currentPassword = password;
-
-    console.log('✅ Wallet imported:', keypair.publicKey.toBase58());
     return keypair.publicKey.toBase58();
   }
 
@@ -87,17 +106,36 @@ export class WalletManager {
     const encrypted = encryptPrivateKey(privateKeyBase64, password);
 
     const db = getDatabase();
-    const stmt = db.prepare(`
-      INSERT INTO wallets (encrypted_private_key, public_key, is_main, label, created_at)
-      VALUES (?, ?, TRUE, ?, ?)
-    `);
+    
+    // Check if we already have a main wallet
+    const existingMain = db.prepare('SELECT id FROM wallets WHERE is_main = TRUE').get();
+    
+    if (existingMain) {
+      // Create as derived wallet (not main)
+      const stmt = db.prepare(`
+        INSERT INTO wallets (encrypted_private_key, public_key, is_main, label, created_at)
+        VALUES (?, ?, FALSE, ?, ?)
+      `);
+      stmt.run(encrypted, keypair.publicKey.toBase58(), label || 'Generated Wallet', Date.now());
+      
+      // Add to derived keypairs map so strategies can use it
+      this.derivedKeypairs.set(keypair.publicKey.toBase58(), keypair);
+      
+      console.log('✅ Wallet generated as derived wallet:', keypair.publicKey.toBase58());
+    } else {
+      // First wallet - create as main wallet
+      const stmt = db.prepare(`
+        INSERT INTO wallets (encrypted_private_key, public_key, is_main, label, created_at)
+        VALUES (?, ?, TRUE, ?, ?)
+      `);
+      stmt.run(encrypted, keypair.publicKey.toBase58(), label || 'Main Wallet', Date.now());
+      
+      this.mainKeypair = keypair;
+      this.currentPassword = password;
+      
+      console.log('✅ Wallet generated as main wallet:', keypair.publicKey.toBase58());
+    }
 
-    stmt.run(encrypted, keypair.publicKey.toBase58(), label || 'Main Wallet', Date.now());
-
-    this.mainKeypair = keypair;
-    this.currentPassword = password;
-
-    console.log('✅ New wallet generated:', keypair.publicKey.toBase58());
     return keypair.publicKey.toBase58();
   }
 
@@ -320,13 +358,14 @@ export class WalletManager {
       throw new Error(`Wallet not found: ${walletIdOrPublicKey}`);
     }
 
+    const publicKey = walletInfo.public_key;
+    
     // If it's the main wallet, return the main keypair
     if (walletInfo.is_main) {
       return this.getMainKeypair();
     }
 
-    // Check if we have this derived wallet in memory
-    const publicKey = walletInfo.public_key;
+    // Check if we have this derived/imported wallet in memory
     const keypair = this.derivedKeypairs.get(publicKey);
 
     if (!keypair) {

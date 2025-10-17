@@ -14,6 +14,9 @@ export interface RatioSimpleConfig {
   buyCount: number;           // e.g., 3 (do 3 buys)
   sellCount: number;          // e.g., 2 (then 2 sells)
   
+  // Round-trip mode
+  roundTripMode: boolean;     // If true, reverses ratio after each cycle
+  
   // Initial trade settings
   initialSolPerTrade: number; // e.g., 0.1 SOL for first buy
   totalSolLimit: number;      // e.g., 10 SOL total to trade
@@ -35,6 +38,9 @@ export interface RatioSimpleProgress {
   
   // Token amount (set by first buy)
   baseTokenAmount: number;    // Amount of tokens per trade (from first buy)
+  
+  // Round-trip state
+  isReversed: boolean;        // True when in sell-first mode (round-trip)
   
   // Overall progress
   totalTrades: number;
@@ -73,6 +79,7 @@ export class RatioSimpleStrategy {
       currentCycle: 0,
       tradesInCycle: 0,
       baseTokenAmount: 0,
+      isReversed: false,
       totalTrades: 0,
       totalBuyTrades: 0,
       totalSellTrades: 0,
@@ -94,6 +101,7 @@ export class RatioSimpleStrategy {
     console.log(`🎯 Starting Simple Ratio Trading #${this.strategyId}`);
     console.log(`   Token: ${this.config.tokenAddress}`);
     console.log(`   Ratio: ${this.config.buyCount} buys : ${this.config.sellCount} sells`);
+    console.log(`   Mode: ${this.config.roundTripMode ? '🔀 ROUND-TRIP (Reverses after each cycle)' : '➡️  ONE-WAY (Fixed pattern)'}`);
     console.log(`   Initial SOL: ${this.config.initialSolPerTrade} SOL per trade`);
     console.log(`   Total Limit: ${this.config.totalSolLimit} SOL`);
     console.log(`   Interval: ${this.config.intervalMinutes} minutes`);
@@ -130,8 +138,17 @@ export class RatioSimpleStrategy {
       await this.updateProgress();
     };
 
-    // Start first trade
-    executeTrade();
+    // Schedule first trade after interval (initial buy already done)
+    let nextInterval = baseInterval;
+    if (this.config.randomizeTiming) {
+      nextInterval = baseInterval * (0.8 + Math.random() * 0.4);
+    }
+    
+    this.intervalId = setTimeout(executeTrade, nextInterval);
+    this.progress.nextTradeTime = Date.now() + nextInterval;
+    await this.updateProgress();
+    
+    console.log(`   ⏱️  Next trade in ${(nextInterval / 60000).toFixed(1)} minutes`);
 
     await this.updateStrategyStatus('active');
   }
@@ -141,7 +158,7 @@ export class RatioSimpleStrategy {
    */
   private async executeInitialBuy(): Promise<void> {
     try {
-      const keypair = this.wallet.getMainKeypair();
+      const keypair = this.wallet.getKeypairByWalletId(this.config.walletId);
       
       // Get token info
       const tokenInfo = await this.jupiter.getTokenInfo(this.config.tokenAddress);
@@ -224,23 +241,43 @@ export class RatioSimpleStrategy {
    * Execute the next trade in the pattern
    */
   private async executeNextTrade(): Promise<void> {
+    // Declare variables at function scope for error handling
+    const totalInPattern = this.config.buyCount + this.config.sellCount;
+    const positionInCycle = this.progress.tradesInCycle % totalInPattern;
+    let isBuy: boolean = false;
+    
     try {
       // Determine if this should be a buy or sell based on ratio pattern
-      const totalInPattern = this.config.buyCount + this.config.sellCount;
-      const positionInCycle = this.progress.tradesInCycle % totalInPattern;
+      // (isBuy declared at function scope for error handling)
       
-      // First buyCount trades in cycle are buys, rest are sells
-      const isBuy = positionInCycle < this.config.buyCount;
+      if (this.config.roundTripMode && this.progress.isReversed) {
+        // REVERSED MODE: buyCount becomes sells, sellCount becomes buys
+        // So if ratio is 3:2, reversed is 3 sells then 2 buys
+        isBuy = positionInCycle >= this.config.buyCount; // First buyCount trades are SELLS
+      } else {
+        // NORMAL MODE: buyCount are buys, sellCount are sells
+        isBuy = positionInCycle < this.config.buyCount; // First buyCount trades are BUYS
+      }
+      
       const direction = isBuy ? 'buy' : 'sell';
+      const modeIndicator = this.config.roundTripMode 
+        ? (this.progress.isReversed ? ' [REVERSED]' : ' [NORMAL]')
+        : '';
 
-      console.log(`\n📊 Cycle ${this.progress.currentCycle + 1}, Trade ${this.progress.tradesInCycle + 1}/${totalInPattern} (${direction.toUpperCase()})`);
+      console.log(`\n📊 Cycle ${this.progress.currentCycle + 1}, Trade ${this.progress.tradesInCycle + 1}/${totalInPattern} (${direction.toUpperCase()})${modeIndicator}`);
       console.log(`   Using base amount: ${this.progress.baseTokenAmount.toFixed(2)} tokens`);
 
       // Select wallet
-      const wallets = this.config.useMultipleWallets
-        ? [this.wallet.getMainKeypair(), ...this.wallet.getDerivedKeypairs()]
-        : [this.wallet.getMainKeypair()];
-      const keypair = wallets[Math.floor(Math.random() * wallets.length)];
+      let keypair: any;
+      
+      if (this.config.useMultipleWallets) {
+        // Use main wallet + derived wallets (random selection)
+        const wallets = [this.wallet.getMainKeypair(), ...this.wallet.getDerivedKeypairs()];
+        keypair = wallets[Math.floor(Math.random() * wallets.length)];
+      } else {
+        // Use the selected wallet from config
+        keypair = this.wallet.getKeypairByWalletId(this.config.walletId);
+      }
 
       // Get token info
       const tokenInfo = await this.jupiter.getTokenInfo(this.config.tokenAddress);
@@ -271,6 +308,20 @@ export class RatioSimpleStrategy {
         // SELL: Sell baseTokenAmount of tokens
         const tokenAmountInSmallestUnit = Math.floor(this.progress.baseTokenAmount * Math.pow(10, tokenInfo.decimals));
         
+        // Check if wallet has enough tokens to sell
+        console.log(`   📊 Checking token balance before sell...`);
+        const tokenBalance = await this.wallet.getTokenBalance(
+          keypair.publicKey.toBase58(),
+          this.config.tokenAddress
+        );
+        
+        console.log(`   💰 Token balance: ${tokenBalance.toFixed(2)} tokens`);
+        console.log(`   📊 Need to sell: ${this.progress.baseTokenAmount.toFixed(2)} tokens`);
+        
+        if (tokenBalance < this.progress.baseTokenAmount * 0.99) { // Allow 1% tolerance
+          throw new Error(`Insufficient token balance. Have ${tokenBalance.toFixed(2)}, need ${this.progress.baseTokenAmount.toFixed(2)} tokens`);
+        }
+        
         quote = await this.jupiter.getQuote({
           inputMint: this.config.tokenAddress,
           outputMint: SOL_MINT,
@@ -280,11 +331,14 @@ export class RatioSimpleStrategy {
       }
 
       // Execute swap
+      console.log(`   🚀 Executing ${direction} swap...`);
       const result = await this.jupiter.executeSwap({
         quote,
         userKeypair: keypair,
         priorityFeeLamports: this.config.priorityFeeLamports,
       });
+      
+      console.log(`   ✅ Swap successful!`);
 
       // Calculate SOL amount for this trade
       const solAmount = isBuy 
@@ -331,7 +385,16 @@ export class RatioSimpleStrategy {
       if (this.progress.tradesInCycle >= totalInPattern) {
         this.progress.currentCycle++;
         this.progress.tradesInCycle = 0;
-        console.log(`   🔄 Cycle ${this.progress.currentCycle} completed! Starting new cycle...`);
+        
+        // Round-trip mode: Reverse the buy/sell pattern after each cycle
+        if (this.config.roundTripMode) {
+          this.progress.isReversed = !this.progress.isReversed;
+          const newMode = this.progress.isReversed ? 'SELL-FIRST (Reversed)' : 'BUY-FIRST (Normal)';
+          console.log(`   🔄 Cycle ${this.progress.currentCycle} completed!`);
+          console.log(`   🔀 ROUND-TRIP: Switching to ${newMode} mode`);
+        } else {
+          console.log(`   🔄 Cycle ${this.progress.currentCycle} completed! Starting new cycle...`);
+        }
       }
 
       // Log transaction
@@ -343,7 +406,18 @@ export class RatioSimpleStrategy {
 
     } catch (error: any) {
       console.error(`   ❌ Trade failed:`, error.message);
-      // Don't stop the strategy, just log and continue
+      console.error(`   📋 Error type:`, error.constructor.name);
+      console.error(`   📋 Full error:`, error);
+      
+      // Log detailed error for diagnostics
+      console.error(`   🔍 Debug Info:`);
+      console.error(`      Strategy ID: ${this.strategyId}`);
+      console.error(`      Trade Type: ${isBuy ? 'BUY' : 'SELL'}`);
+      console.error(`      Position in Cycle: ${positionInCycle}`);
+      console.error(`      Cycle: ${this.progress.currentCycle}`);
+      console.error(`      Base Token Amount: ${this.progress.baseTokenAmount}`);
+      
+      // Don't stop the strategy, just log and continue to next trade
     }
   }
 

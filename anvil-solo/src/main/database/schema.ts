@@ -34,6 +34,7 @@ export class DatabaseSchema {
     this.createLicenseTable();
     this.createFeeTransactionsTable();
     this.createActivityLogsTable();
+    this.createDiagnosticTables();
 
     // Run migrations for existing databases
     this.runMigrations();
@@ -87,8 +88,11 @@ export class DatabaseSchema {
         type TEXT NOT NULL CHECK(type IN ('dca', 'ratio', 'bundle')),
         token_address TEXT NOT NULL,
         config TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'stopped', 'completed')) DEFAULT 'stopped',
+        status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'stopped', 'completed', 'archived')) DEFAULT 'stopped',
         progress TEXT,
+        archived_at INTEGER,
+        cloud_synced BOOLEAN DEFAULT FALSE,
+        archive_notes TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
@@ -154,6 +158,7 @@ export class DatabaseSchema {
       { key: 'fee_wallet_address', value: '82wZpbqxXAq5qFUQey3qgjWvVrTf8izc9McByMdRHvrd' }, // Admin fee collection wallet
       { key: 'fee_percentage', value: '0.5' }, // 0.5% fee per transaction
       { key: 'fee_enabled', value: 'true' },
+      { key: 'schema_version', value: '2' }, // Track database schema version for migrations
     ];
 
     const insertSetting = this.db.prepare(
@@ -176,6 +181,69 @@ export class DatabaseSchema {
         hwid TEXT
       )
     `);
+  }
+
+  private createDiagnosticTables(): void {
+    // System health checks table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS system_health_checks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        check_type TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pass', 'fail', 'warning')),
+        response_time_ms INTEGER,
+        error_message TEXT,
+        details TEXT,
+        timestamp INTEGER NOT NULL
+      )
+    `);
+
+    // Code execution logs table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS code_execution_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        function_name TEXT NOT NULL,
+        module_name TEXT NOT NULL,
+        execution_time_ms REAL,
+        status TEXT NOT NULL CHECK(status IN ('started', 'completed', 'failed')),
+        error_message TEXT,
+        stack_trace TEXT,
+        timestamp INTEGER NOT NULL
+      )
+    `);
+
+    // System events table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS system_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_type TEXT NOT NULL,
+        severity TEXT NOT NULL CHECK(severity IN ('info', 'warning', 'error', 'critical')),
+        message TEXT NOT NULL,
+        details TEXT,
+        timestamp INTEGER NOT NULL
+      )
+    `);
+
+    // Performance metrics table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS performance_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        metric_type TEXT NOT NULL,
+        metric_value REAL NOT NULL,
+        unit TEXT,
+        context TEXT,
+        timestamp INTEGER NOT NULL
+      )
+    `);
+
+    // Create indexes
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_health_checks_timestamp ON system_health_checks(timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_code_logs_timestamp ON code_execution_logs(timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_system_events_timestamp ON system_events(timestamp DESC);
+      CREATE INDEX IF NOT EXISTS idx_performance_timestamp ON performance_metrics(timestamp DESC);
+    `);
+
+    console.log('✅ Diagnostic tables created');
   }
 
   getDatabase(): Database.Database {
@@ -231,24 +299,44 @@ export class DatabaseSchema {
     }
 
     // Migration 1: Add archive fields and update CHECK constraint
+    console.log('  🔧 Migration 1: Checking archive support...');
     try {
-      // Test if 'archived' status is allowed by trying to use it
       let needsMigration = false;
       
+      // ALWAYS test if archive works, regardless of schema version
+      console.log('  🔍 Testing if "archived" status is allowed...');
       try {
-        // Try to insert a test row with 'archived' status
-        this.db.exec(`
+        // Use a transaction to test without leaving test data
+        const testQuery = this.db.prepare(`
           INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
-          VALUES ('dca', 'test', '{}', 'archived', 0, 0)
+          VALUES ('dca', '__migration_test__', '{}', 'archived', 0, 0)
         `);
-        // If it worked, delete the test row
-        this.db.exec(`DELETE FROM strategies WHERE token_address = 'test' AND created_at = 0`);
-        console.log('  ℹ️  CHECK constraint already supports "archived" status');
+        
+        this.db.prepare('BEGIN').run();
+        testQuery.run();
+        this.db.prepare('ROLLBACK').run();
+        
+        console.log('  ✅ Archive status test PASSED - "archived" is allowed');
+        needsMigration = false;
       } catch (testError: any) {
+        // Make sure to rollback on any error
+        try { this.db.prepare('ROLLBACK').run(); } catch {}
+        
+        console.log('  ❌ Archive status test FAILED:', testError.message);
+        console.log('  📋 SQLite error code:', testError.code);
+        
+        // Any error means migration is needed
+        needsMigration = true;
+        
         if (testError.message.includes('CHECK constraint')) {
-          needsMigration = true;
-          console.log('  ⚠️  CHECK constraint needs update - "archived" not allowed yet');
+          console.log('  🔧 Reason: CHECK constraint does not include "archived"');
+        } else if (testError.message.includes('no such column')) {
+          console.log('  🔧 Reason: Archive columns missing');
+        } else {
+          console.log('  🔧 Reason: Unknown error - migration required');
         }
+        
+        console.log('  ⚠️  MIGRATION IS REQUIRED TO FIX THIS');
       }
       
       if (needsMigration) {
@@ -305,6 +393,11 @@ export class DatabaseSchema {
         `);
         
         console.log('  Step 5: Indexes recreated ✅');
+        
+        // Step 6: Update schema version to 2
+        this.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('schema_version', '2');
+        console.log('  Step 6: Schema version updated to 2 ✅');
+        
         console.log('  ✅ Migration completed - Archive status now supported!');
       } else {
         console.log('  ✅ Archive support already enabled');

@@ -481,6 +481,7 @@ async function createRatioStrategy() {
     const priorityFee = parseInt(document.getElementById('ratio-priority-fee').value);
     const randomizeTiming = document.getElementById('ratio-randomize').checked;
     const useMultiWallets = document.getElementById('ratio-multi-wallet').checked;
+    const roundTripMode = document.getElementById('ratio-round-trip').checked;
     
     // Validation
     if (!tokenMint) {
@@ -529,6 +530,7 @@ async function createRatioStrategy() {
       walletId: walletId,
       buyCount: buyCount,
       sellCount: sellCount,
+      roundTripMode: roundTripMode,
       initialSolPerTrade: initialSol,
       totalSolLimit: totalSolLimit,
       intervalMinutes: intervalMinutes,
@@ -1353,8 +1355,38 @@ function showSuccessMessage(htmlContent) {
 
 function setupLicenseActivation() {
   const activateBtn = document.getElementById('activate-license-btn');
+  const testConnectionBtn = document.getElementById('test-license-connection-btn');
   const validateBtn = document.getElementById('validate-license-btn');
   const deactivateBtn = document.getElementById('deactivate-license-btn');
+  
+  // Test Connection
+  if (testConnectionBtn) {
+    testConnectionBtn.addEventListener('click', async () => {
+      showLicenseStatus('🔌 Testing connection to license server...', 'info');
+      testConnectionBtn.disabled = true;
+      testConnectionBtn.textContent = '🔄 Testing...';
+      
+      try {
+        if (window.electron && window.electron.license && window.electron.license.testConnection) {
+          const result = await window.electron.license.testConnection();
+          
+          if (result.connected) {
+            showLicenseStatus(`✅ Connected to license server! (${result.responseTime}ms)\n${result.data}`, 'success');
+          } else {
+            showLicenseStatus(`❌ Cannot reach license server:\n${result.error}\n\nCheck your internet connection or firewall settings.`, 'error');
+          }
+        } else {
+          showLicenseStatus('❌ Test connection feature not available', 'error');
+        }
+      } catch (error) {
+        console.error('Connection test error:', error);
+        showLicenseStatus(`❌ Test failed: ${error.message}`, 'error');
+      } finally {
+        testConnectionBtn.disabled = false;
+        testConnectionBtn.textContent = '🔌 Test Connection';
+      }
+    });
+  }
   
   // Activate License
   if (activateBtn) {
@@ -1367,17 +1399,25 @@ function setupLicenseActivation() {
       }
       
       showLicenseStatus('Activating license...', 'info');
+      activateBtn.disabled = true;
+      activateBtn.textContent = '⏳ Activating...';
       
       try {
         // Call the backend API
         if (window.electron && window.electron.license) {
+          console.log(`🔑 Attempting to activate license: ${licenseKey}`);
           const result = await window.electron.license.activate(licenseKey);
+          console.log('📋 Activation result:', result);
           
           if (result.success) {
-            showLicenseStatus(`✅ ${result.license.tier.toUpperCase()} license activated!`, 'success');
+            showLicenseStatus(`✅ ${result.license.tier.toUpperCase()} license activated successfully!`, 'success');
             updateLicenseDisplay(result.license);
+            
+            // Reload license info to update UI
+            await loadLicenseInfo();
           } else {
-            showLicenseStatus(`❌ ${result.message}`, 'error');
+            console.error('❌ Activation failed:', result.message);
+            showLicenseStatus(`❌ Activation failed: ${result.message}`, 'error');
           }
         } else {
           // Fallback for testing
@@ -1393,7 +1433,11 @@ function setupLicenseActivation() {
           document.getElementById('feature-cloud').textContent = 'Yes';
         }
       } catch (error) {
+        console.error('❌ License activation error:', error);
         showLicenseStatus(`❌ Error: ${error.message}`, 'error');
+      } finally {
+        activateBtn.disabled = false;
+        activateBtn.textContent = 'Activate License';
       }
     });
   }
@@ -1538,6 +1582,11 @@ function showPage(pageName) {
     loadTradesData();
   } else if (pageName === 'archive') {
     loadArchivedStrategies();
+  } else if (pageName === 'monitor') {
+    if (window.loadMonitorPage) loadMonitorPage();
+  } else if (pageName === 'diagnostics') {
+    // Diagnostics page - ready for manual diagnostic run
+    console.log('Diagnostics page loaded - click "Run Full Diagnostic" to start');
   } else if (pageName === 'dca' || pageName === 'ratio' || pageName === 'bundle') {
     populateTokenDropdowns();
     populateWalletDropdowns();

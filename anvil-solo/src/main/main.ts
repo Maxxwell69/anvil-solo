@@ -592,6 +592,60 @@ ipcMain.handle('license:getHwid', async (event) => {
   }
 });
 
+ipcMain.handle('license:testConnection', async (event) => {
+  try {
+    const https = require('https');
+    const LICENSE_API_URL = process.env.LICENSE_API_URL || 'https://anvil.shoguncrypto.com';
+    
+    console.log(`Testing connection to: ${LICENSE_API_URL}/api/license/test`);
+    
+    return new Promise((resolve) => {
+      const start = Date.now();
+      
+      const req = https.get(`${LICENSE_API_URL}/api/license/test`, (res: any) => {
+        const time = Date.now() - start;
+        let data = '';
+        
+        res.on('data', (chunk: any) => {
+          data += chunk;
+        });
+        
+        res.on('end', () => {
+          console.log(`Connection test response (${res.statusCode}): ${data}`);
+          resolve({
+            success: true,
+            connected: true,
+            responseTime: time,
+            statusCode: res.statusCode,
+            data: data
+          });
+        });
+      });
+      
+      req.on('error', (error: any) => {
+        console.error('Connection test error:', error);
+        resolve({
+          success: true,
+          connected: false,
+          error: error.message
+        });
+      });
+      
+      req.setTimeout(10000, () => {
+        req.destroy();
+        resolve({
+          success: true,
+          connected: false,
+          error: 'Connection timeout (10s)'
+        });
+      });
+    });
+  } catch (error: any) {
+    console.error('License test connection error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // ============================================================================
 // IPC HANDLERS - DevTools
 // ============================================================================
@@ -646,7 +700,7 @@ ipcMain.handle('strategies:getAll', async (event) => {
       FROM strategies s
       LEFT JOIN tokens t ON s.token_address = t.contract_address
       WHERE s.status != 'archived'
-      ORDER BY s.created_at DESC
+      ORDER BY s.created_at ASC
     `).all();
     
     console.log(`📊 Returning ${strategies.length} strateg(ies)`);
@@ -1716,6 +1770,121 @@ app.on('before-quit', () => {
     }
   });
   closeDatabase();
+});
+
+// ============================================================================
+// SYSTEM DIAGNOSTICS
+// ============================================================================
+
+// Get system information
+ipcMain.handle('system:getInfo', async () => {
+  try {
+    const os = require('os');
+    
+    return {
+      success: true,
+      info: {
+        platform: os.platform(),
+        arch: os.arch(),
+        release: os.release(),
+        hostname: os.hostname(),
+        cpus: os.cpus().length,
+        cpuModel: os.cpus()[0]?.model || 'Unknown',
+        totalMemory: (os.totalmem() / (1024 ** 3)).toFixed(2) + ' GB',
+        freeMemory: (os.freemem() / (1024 ** 3)).toFixed(2) + ' GB',
+        uptime: Math.floor(os.uptime() / 3600) + ' hours',
+        nodeVersion: process.version,
+        electronVersion: process.versions.electron
+      }
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Test internet connectivity
+ipcMain.handle('system:testInternet', async () => {
+  try {
+    const https = require('https');
+    
+    return new Promise((resolve) => {
+      const start = Date.now();
+      
+      const req = https.get('https://www.google.com', (res: any) => {
+        const time = Date.now() - start;
+        resolve({
+          success: true,
+          connected: true,
+          responseTime: time,
+          statusCode: res.statusCode
+        });
+      });
+      
+      req.on('error', (error: any) => {
+        resolve({
+          success: true,
+          connected: false,
+          error: error.message
+        });
+      });
+      
+      req.setTimeout(5000, () => {
+        req.destroy();
+        resolve({
+          success: true,
+          connected: false,
+          error: 'Connection timeout'
+        });
+      });
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Test DNS resolution (Jupiter API)
+ipcMain.handle('system:testDNS', async () => {
+  try {
+    const https = require('https');
+    
+    return new Promise((resolve) => {
+      const start = Date.now();
+      
+      const req = https.get('https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=So11111111111111111111111111111111111111112&amount=1000000', (res: any) => {
+        const time = Date.now() - start;
+        resolve({
+          success: true,
+          connected: true,
+          responseTime: time,
+          statusCode: res.statusCode
+        });
+      });
+      
+      req.on('error', (error: any) => {
+        const errorMsg = error.message || '';
+        const isDnsError = errorMsg.includes('ENOTFOUND') || errorMsg.includes('getaddrinfo');
+        
+        resolve({
+          success: true,
+          connected: false,
+          isDnsError: isDnsError,
+          error: error.message,
+          code: error.code
+        });
+      });
+      
+      req.setTimeout(5000, () => {
+        req.destroy();
+        resolve({
+          success: true,
+          connected: false,
+          error: 'Connection timeout'
+        });
+      });
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 });
 
 // Handle uncaught exceptions
