@@ -339,8 +339,8 @@ async function loadAllWallets() {
           ${wallet.label || 'Wallet'}
         </div>
         <div style="font-family: monospace; font-size: 0.85em; color: #8892a6; cursor: pointer;" 
-             onclick="navigator.clipboard.writeText('${wallet.public_key}'); alert('📋 Address copied!')">
-          ${wallet.public_key.slice(0, 8)}...${wallet.public_key.slice(-8)} 📋
+             onclick="navigator.clipboard.writeText('${wallet.publicKey}'); alert('📋 Address copied!')">
+          ${wallet.publicKey.slice(0, 8)}...${wallet.publicKey.slice(-8)} 📋
         </div>
       `;
       
@@ -370,7 +370,7 @@ async function loadAllWallets() {
             ${wallet.balance.toFixed(4)} SOL
           </div>
           <button class="btn btn-small" style="background: #667eea; padding: 8px 15px;" 
-                  onclick="openWithdrawModal('sol', '${wallet.public_key}', ${wallet.balance})">
+                  onclick="openWithdrawModal('sol', '${wallet.publicKey}', ${wallet.balance})">
             💸 Withdraw
           </button>
         </div>
@@ -382,7 +382,7 @@ async function loadAllWallets() {
       if (savedTokens.length > 0) {
         for (const token of savedTokens) {
           try {
-            const balanceResult = await window.electron.wallet.getTokenBalance(wallet.public_key, token.contract_address);
+            const balanceResult = await window.electron.wallet.getTokenBalance(wallet.publicKey, token.contract_address);
             const balance = balanceResult.success ? balanceResult.balance : 0;
             
             if (balance > 0) {
@@ -408,7 +408,7 @@ async function loadAllWallets() {
                     ${balance.toFixed(4)}
                   </div>
                   <button class="btn btn-small" style="background: #2ed573; padding: 8px 15px;" 
-                          onclick="openWithdrawModal('token', '${wallet.public_key}', ${balance}, '${token.contract_address}', '${token.symbol || token.name}', ${token.decimals || 9})">
+                          onclick="openWithdrawModal('token', '${wallet.publicKey}', ${balance}, '${token.contract_address}', '${token.symbol || token.name}', ${token.decimals || 9})">
                     💸 Withdraw
                   </button>
                 </div>
