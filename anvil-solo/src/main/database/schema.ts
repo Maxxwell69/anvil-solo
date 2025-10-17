@@ -175,7 +175,7 @@ export class DatabaseSchema {
       CREATE TABLE IF NOT EXISTS license (
         id INTEGER PRIMARY KEY CHECK(id = 1),
         license_key TEXT,
-        tier TEXT CHECK(tier IN ('free', 'starter', 'pro', 'enterprise', 'lifetime')),
+        tier TEXT,
         features TEXT,
         expires_at INTEGER,
         activated_at INTEGER,
@@ -259,25 +259,73 @@ export class DatabaseSchema {
   private runMigrations(): void {
     console.log('Running database migrations...');
 
-    // Migration -1: Add missing columns to license table
+    // Migration -1: Fix license table (remove CHECK constraint, add columns)
     console.log('  🔧 Migration -1: Checking license table schema...');
     try {
-      // Check if features column exists
       const tableInfo = this.db.prepare("PRAGMA table_info(license)").all();
       const hasFeatures = tableInfo.some((col: any) => col.name === 'features');
       const hasExpiresAt = tableInfo.some((col: any) => col.name === 'expires_at');
       
-      if (!hasFeatures) {
-        console.log('  🔧 Adding features column to license table');
-        this.db.exec('ALTER TABLE license ADD COLUMN features TEXT');
+      // Check if tier has restrictive CHECK constraint
+      let needsRecreate = false;
+      try {
+        // Try to insert a 'free' tier to test constraint
+        this.db.prepare('BEGIN').run();
+        this.db.prepare('INSERT INTO license (id, license_key, tier) VALUES (999, "__test__", "free")').run();
+        this.db.prepare('DELETE FROM license WHERE id = 999').run();
+        this.db.prepare('COMMIT').run();
+      } catch (e: any) {
+        this.db.prepare('ROLLBACK').run();
+        if (e.message.includes('CHECK constraint')) {
+          needsRecreate = true;
+          console.log('  🔧 License table has restrictive CHECK constraint - needs recreation');
+        }
       }
       
-      if (!hasExpiresAt) {
-        console.log('  🔧 Adding expires_at column to license table');
-        this.db.exec('ALTER TABLE license ADD COLUMN expires_at INTEGER');
+      if (!hasFeatures || !hasExpiresAt || needsRecreate) {
+        console.log('  🔧 Recreating license table with proper schema...');
+        
+        // Get existing data
+        const existingLicense = this.db.prepare('SELECT * FROM license WHERE id = 1').get() as any;
+        
+        // Drop old table
+        this.db.exec('DROP TABLE IF EXISTS license');
+        
+        // Create new table without restrictive CHECK constraint
+        this.db.exec(`
+          CREATE TABLE license (
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            license_key TEXT,
+            tier TEXT,
+            features TEXT,
+            expires_at INTEGER,
+            activated_at INTEGER,
+            last_validated INTEGER,
+            hwid TEXT
+          )
+        `);
+        
+        // Restore data if it existed
+        if (existingLicense) {
+          this.db.prepare(`
+            INSERT INTO license (id, license_key, tier, features, expires_at, activated_at, last_validated, hwid)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            existingLicense.license_key || null,
+            existingLicense.tier || null,
+            existingLicense.features || null,
+            existingLicense.expires_at || null,
+            existingLicense.activated_at || null,
+            existingLicense.last_validated || null,
+            existingLicense.hwid || null
+          );
+          console.log('  ✅ Restored existing license data');
+        }
+        
+        console.log('  ✅ License table recreated with proper schema');
+      } else {
+        console.log('  ✅ License table schema is correct');
       }
-      
-      console.log('  ✅ License table schema migration complete');
     } catch (migrationError: any) {
       console.error('  ❌ License table migration failed:', migrationError.message);
     }
