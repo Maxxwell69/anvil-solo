@@ -349,7 +349,11 @@ async function loadTokensInWallet(walletPubkey) {
     for (const token of tokensResponse.tokens) {
       try {
         if (window.electron.wallet && window.electron.wallet.getTokenBalance) {
-          const balance = await window.electron.wallet.getTokenBalance(walletPubkey, token.contract_address);
+          const balanceResult = await window.electron.wallet.getTokenBalance(walletPubkey, token.contract_address);
+          const balance = balanceResult.success ? balanceResult.balance : 0;
+          
+          console.log(`Token ${token.symbol}: ${balance} balance`);
+          
           if (balance > 0) {
             tokensWithBalances.push({
               ...token,
