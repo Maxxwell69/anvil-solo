@@ -1,6 +1,6 @@
 {
   "name": "anvil-solo",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "Solana Meme Coin Trading Bot - DCA, Ratio Trading, and Volume Generation",
   "main": "dist/main/main.js",
   "author": "Anvil",

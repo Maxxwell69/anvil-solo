@@ -12,7 +12,7 @@
   <div id="unlock-screen" class="screen active">
     <div class="unlock-container">
       <h1>🔒 Anvil Solo</h1>
-      <p class="version-splash">v3.5.0</p>
+      <p class="version-splash">v3.6.0</p>
       <p>Unlock your wallet to continue</p>
       <div class="form-group">
         <div class="password-input-wrapper">
@@ -124,32 +124,6 @@
     </div>
   </div>
 
-  <!-- Archive Strategy Modal -->
-  <div id="archive-modal" class="modal">
-    <div class="modal-content">
-      <h2>📦 Archive Strategy</h2>
-      <div style="background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-        <p style="margin: 0 0 10px 0; color: #bdc3c7;">Archiving this strategy will:</p>
-        <ul style="margin: 0; padding-left: 20px; color: #bdc3c7; font-size: 14px;">
-          <li>✅ Preserve all transaction data</li>
-          <li>✅ Keep activity logs</li>
-          <li>✅ Store locally on your computer</li>
-          <li>☁️ Allow cloud sync later</li>
-          <li>♻️ Let you restore it anytime</li>
-        </ul>
-      </div>
-      <div class="form-group">
-        <label>Optional Notes</label>
-        <textarea id="archive-notes" placeholder="e.g., 'Completed successfully', 'Testing phase done', etc." rows="3"></textarea>
-        <small>Add notes about why you're archiving this strategy (optional)</small>
-      </div>
-      <div class="form-actions">
-        <button id="archive-confirm-btn" class="btn btn-primary">📦 Archive Strategy</button>
-        <button id="archive-cancel-btn" class="btn btn-secondary">Cancel</button>
-      </div>
-      <div id="archive-error" class="error-message"></div>
-    </div>
-  </div>
 
   <!-- Main App (shown after unlock) -->
   <div id="main-app" class="screen">
@@ -157,7 +131,7 @@
     <div class="sidebar">
       <div class="logo">
         <h2>⚡ Anvil Solo</h2>
-        <span class="version-badge" id="app-version">v3.5.0</span>
+        <span class="version-badge" id="app-version">v3.6.0</span>
       </div>
       <nav class="nav">
         <a href="#" class="nav-item active" data-page="dashboard">
@@ -178,8 +152,8 @@
         <a href="#" class="nav-item" data-page="trades">
           <span>📊</span> Trades & Volume
         </a>
-        <a href="#" class="nav-item" data-page="archive">
-          <span>📦</span> Archive
+        <a href="#" class="nav-item" data-page="sync">
+          <span>☁️</span> Data Sync
         </a>
         <a href="#" class="nav-item" data-page="wallet">
           <span>💰</span> Wallet
@@ -718,25 +692,65 @@
         </div>
       </div>
 
-      <!-- Archive Page -->
-      <div id="archive-page" class="page">
-        <h1>📦 Strategy Archive</h1>
-        <p class="page-description">View archived strategies with all their data preserved. Restore them anytime or sync to cloud.</p>
+      <!-- Data Sync Page -->
+      <div id="sync-page" class="page">
+        <h1>☁️ Data Sync</h1>
+        <p class="page-description">Sync your trading data to the cloud for backup, analysis, and multi-device access.</p>
 
         <div class="section">
-          <div style="background: #34495e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #3498db;">📦 About Archive</h3>
-            <div style="font-size: 13px; color: #bdc3c7; line-height: 1.6;">
-              <p><strong>✅ All data preserved:</strong> Transactions, activity logs, and strategy configuration</p>
-              <p><strong>📂 Local storage:</strong> Archived strategies are stored on your computer</p>
-              <p><strong>☁️ Cloud sync:</strong> Option to sync to cloud for backup (coming soon)</p>
-              <p><strong>♻️ Restore anytime:</strong> Bring strategies back to active status</p>
-              <p><strong>🗑️ Permanent delete:</strong> Only deletes if you explicitly choose to</p>
+          <div style="background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #3498db;">☁️ Cloud Data Sync</h3>
+            <div style="font-size: 14px; color: #bdc3c7; line-height: 1.6;">
+              <p><strong>📊 Complete data backup:</strong> Strategies, trades, transactions, and settings</p>
+              <p><strong>🔄 Real-time sync:</strong> Keep your data synchronized across devices</p>
+              <p><strong>📈 Analytics:</strong> Access advanced trading analytics in the cloud dashboard</p>
+              <p><strong>🔒 Secure:</strong> All data encrypted and stored securely</p>
             </div>
           </div>
 
-          <div id="archive-list" class="strategies-list">
-            <div class="empty-state">Loading archived strategies...</div>
+          <div class="section">
+            <h2>📊 Data Summary</h2>
+            <div id="sync-data-summary" class="sync-summary">
+              <div class="summary-item">
+                <span class="summary-label">Active Strategies:</span>
+                <span class="summary-value" id="sync-active-strategies">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Total Trades:</span>
+                <span class="summary-value" id="sync-total-trades">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Volume Generated:</span>
+                <span class="summary-value" id="sync-total-volume">-</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Last Sync:</span>
+                <span class="summary-value" id="sync-last-sync">Never</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>🔄 Sync Actions</h2>
+            <div class="sync-actions">
+              <button id="sync-now-btn" class="btn btn-primary" style="margin-right: 10px;">
+                ☁️ Sync Now
+              </button>
+              <button id="view-cloud-dashboard-btn" class="btn btn-secondary" style="margin-right: 10px;">
+                📊 View Cloud Dashboard
+              </button>
+              <button id="sync-settings-btn" class="btn btn-secondary">
+                ⚙️ Sync Settings
+              </button>
+            </div>
+            <div id="sync-status" class="status-message" style="margin-top: 15px;"></div>
+          </div>
+
+          <div class="section">
+            <h2>📋 Sync History</h2>
+            <div id="sync-history" class="sync-history">
+              <div class="empty-state">No sync history available</div>
+            </div>
           </div>
         </div>
       </div>
@@ -884,7 +898,7 @@
           <div class="version-info-card">
             <div class="version-row">
               <span class="version-label">Current Version:</span>
-              <span class="version-value" id="diag-current-version">v3.5.0</span>
+              <span class="version-value" id="diag-current-version">v3.6.0</span>
             </div>
             <div class="version-row">
               <span class="version-label">Latest Available:</span>

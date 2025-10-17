@@ -1866,8 +1866,8 @@ function showPage(pageName) {
     loadActivityLogs();
   } else if (pageName === 'trades') {
     loadTradesData();
-  } else if (pageName === 'archive') {
-    loadArchivedStrategies();
+  } else if (pageName === 'sync') {
+    loadSyncPage();
   } else if (pageName === 'monitor') {
     if (window.loadMonitorPage) loadMonitorPage();
   } else if (pageName === 'diagnostics') {
@@ -2423,139 +2423,272 @@ async function loadStrategies() {
 }
 
 // Load archived strategies
-async function loadArchivedStrategies() {
-  console.log('Loading archived strategies...');
-  const archiveList = document.getElementById('archive-list');
-  
-  if (!archiveList) {
-    console.error('Archive list element not found');
-    return;
-  }
+async function loadSyncPage() {
+  console.log('Loading sync page...');
   
   try {
-    // Show loading state
-    archiveList.innerHTML = '<div class="empty-state">Loading archived strategies...</div>';
+    // Load data summary
+    await loadSyncDataSummary();
     
-    if (!window.electron || !window.electron.strategy) {
-      console.error('Electron strategy API not available');
-      archiveList.innerHTML = '<div class="empty-state">⚠️ Strategy API not available</div>';
-      return;
-    }
+    // Load sync history
+    await loadSyncHistory();
     
-    // Get archived strategies
-    const response = await window.electron.strategy.getArchived();
+    // Setup sync buttons
+    setupSyncButtons();
     
-    console.log('Archived strategies response:', response);
-    
-    if (!response || !response.success) {
-      archiveList.innerHTML = `<div class="empty-state">❌ Error: ${response?.error || 'Failed to load archived strategies'}</div>`;
-      return;
-    }
-    
-    const strategies = response.strategies || [];
-    
-    if (strategies.length === 0) {
-      archiveList.innerHTML = '<div class="empty-state">📦 No archived strategies yet. Archive strategies to preserve their data!</div>';
-      return;
-    }
-    
-    // Display archived strategies
-    archiveList.innerHTML = '';
-    strategies.forEach((strategy) => {
-      const strategyCard = document.createElement('div');
-      strategyCard.className = 'strategy-card';
-      strategyCard.style.opacity = '0.9';
-      strategyCard.style.border = '2px solid #7f8c8d';
-      
-      // Determine strategy type and icon
-      let typeLabel = 'Unknown';
-      let typeIcon = '📊';
-      if (strategy.type === 'dca') {
-        typeLabel = 'DCA';
-        typeIcon = '📈';
-      } else if (strategy.type === 'ratio') {
-        typeLabel = 'Ratio Trading';
-        typeIcon = '🎯';
-      } else if (strategy.type === 'bundle') {
-        typeLabel = 'Bundle';
-        typeIcon = '📦';
-      }
-      
-      // Format dates
-      const createdDate = strategy.created_at ? new Date(strategy.created_at).toLocaleString() : 'N/A';
-      const archivedDate = strategy.archived_at ? new Date(strategy.archived_at).toLocaleString() : 'N/A';
-      
-      strategyCard.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-          <div style="flex: 1;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-              <span style="font-size: 20px;">${typeIcon}</span>
-              <strong style="font-size: 16px;">${typeLabel} #${strategy.id}</strong>
-              <span style="background: #7f8c8d; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">📦 ARCHIVED</span>
-              ${strategy.cloud_synced ? '<span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">☁️ SYNCED</span>' : ''}
-            </div>
-            <div style="font-size: 12px; color: #bdc3c7; margin-bottom: 8px;">
-              📅 Archived: <strong>${archivedDate}</strong>
-            </div>
-            ${strategy.archive_notes ? `
-              <div style="font-size: 12px; color: #e8e8e8; background: #34495e; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
-                📝 Notes: ${strategy.archive_notes}
-              </div>
-            ` : ''}
-            <div style="font-size: 11px; color: #95a5a6;">
-              📊 ${strategy.transaction_count || 0} transactions • ${(strategy.total_volume || 0).toFixed(4)} SOL volume
-            </div>
-          </div>
-          <div style="display: flex; gap: 5px;">
-            <button class="btn btn-small" onclick="restoreStrategy(${strategy.id})" style="background: #27ae60; min-width: 100px;">
-              ♻️ Restore
-            </button>
-            ${!strategy.cloud_synced ? `
-              <button class="btn btn-small" onclick="syncToCloud(${strategy.id})" style="background: #3498db; min-width: 100px;">
-                ☁️ Sync
-              </button>
-            ` : ''}
-            <button class="btn btn-small" onclick="deleteStrategy(${strategy.id})" style="background: #e74c3c; min-width: 100px;">
-              🗑️ Delete
-            </button>
-          </div>
-        </div>
-        <div style="font-size: 11px; color: #95a5a6;">
-          Originally created: ${createdDate}
-        </div>
-      `;
-      archiveList.appendChild(strategyCard);
-    });
-    
-    console.log(`✅ Loaded ${strategies.length} archived strateg(ies)`);
+    console.log('✅ Sync page loaded successfully');
     
   } catch (error) {
-    console.error('Error loading archived strategies:', error);
-    archiveList.innerHTML = `<div class="empty-state">❌ Error loading archived strategies: ${error.message}</div>`;
+    console.error('Error loading sync page:', error);
+    showSyncStatus('❌ Error loading sync page: ' + error.message, 'error');
   }
 }
 
-// Sync strategy to cloud (placeholder for future implementation)
-async function syncToCloud(strategyId) {
-  // For now, just mark as synced locally
-  // In the future, this would actually upload to cloud service
-  if (!confirm(`Sync Strategy #${strategyId} to cloud?\n\n(Cloud sync feature coming soon!)`)) {
-    return;
-  }
-  
+async function loadSyncDataSummary() {
   try {
-    const result = await window.electron.strategy.markSynced(strategyId);
-    if (result.success) {
-      alert('✅ Strategy marked as synced!\n\n(Full cloud sync coming in future update)');
-      loadArchivedStrategies(); // Refresh
-    } else {
-      alert(`Failed: ${result.error}`);
+    // Get active strategies count
+    const strategiesResponse = await window.electron.strategy.getAll();
+    const activeStrategies = strategiesResponse.success ? strategiesResponse.strategies.length : 0;
+    
+    // Get total trades
+    const tradesResponse = await window.electron.trade.getAll();
+    const totalTrades = tradesResponse.success ? tradesResponse.trades.length : 0;
+    
+    // Calculate total volume
+    let totalVolume = 0;
+    if (tradesResponse.success && tradesResponse.trades) {
+      totalVolume = tradesResponse.trades.reduce((sum, trade) => sum + (trade.amount || 0), 0);
     }
+    
+    // Get last sync time (from local storage)
+    const lastSync = localStorage.getItem('lastSyncTime') || 'Never';
+    
+    // Update UI
+    document.getElementById('sync-active-strategies').textContent = activeStrategies;
+    document.getElementById('sync-total-trades').textContent = totalTrades.toLocaleString();
+    document.getElementById('sync-total-volume').textContent = totalVolume.toFixed(2) + ' SOL';
+    document.getElementById('sync-last-sync').textContent = lastSync;
+    
   } catch (error) {
-    console.error('Error syncing to cloud:', error);
-    alert(`Error: ${error.message}`);
+    console.error('Error loading sync data summary:', error);
   }
 }
+
+async function loadSyncHistory() {
+  const syncHistory = document.getElementById('sync-history');
+  if (!syncHistory) return;
+  
+  try {
+    // Get sync history from local storage
+    const history = JSON.parse(localStorage.getItem('syncHistory') || '[]');
+    
+    if (history.length === 0) {
+      syncHistory.innerHTML = '<div class="empty-state">No sync history available</div>';
+      return;
+    }
+    
+    // Display sync history
+    syncHistory.innerHTML = '';
+    history.forEach((entry, index) => {
+      const historyItem = document.createElement('div');
+      historyItem.className = 'sync-history-item';
+      
+      const statusClass = entry.success ? 'success' : 'error';
+      const statusText = entry.success ? 'Success' : 'Failed';
+      
+      historyItem.innerHTML = `
+        <div>
+          <div style="font-weight: 500; color: #fff;">${entry.action}</div>
+          <div class="sync-history-time">${new Date(entry.timestamp).toLocaleString()}</div>
+        </div>
+        <div class="sync-history-status ${statusClass}">${statusText}</div>
+      `;
+      
+      syncHistory.appendChild(historyItem);
+    });
+    
+  } catch (error) {
+    console.error('Error loading sync history:', error);
+    syncHistory.innerHTML = '<div class="empty-state">Error loading sync history</div>';
+  }
+}
+
+function setupSyncButtons() {
+  // Sync Now button
+  const syncNowBtn = document.getElementById('sync-now-btn');
+  if (syncNowBtn) {
+    syncNowBtn.onclick = () => performSync();
+  }
+  
+  // View Cloud Dashboard button
+  const viewDashboardBtn = document.getElementById('view-cloud-dashboard-btn');
+  if (viewDashboardBtn) {
+    viewDashboardBtn.onclick = () => {
+      window.open('https://anvil.shoguncrypto.com/dashboard', '_blank');
+    };
+  }
+  
+  // Sync Settings button
+  const syncSettingsBtn = document.getElementById('sync-settings-btn');
+  if (syncSettingsBtn) {
+    syncSettingsBtn.onclick = () => {
+      showSyncStatus('⚙️ Sync settings coming soon!', 'info');
+    };
+  }
+}
+
+async function performSync() {
+  const syncBtn = document.getElementById('sync-now-btn');
+  const statusDiv = document.getElementById('sync-status');
+  
+  if (!syncBtn || !statusDiv) return;
+  
+  try {
+    // Disable button and show loading
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '⏳ Syncing...';
+    showSyncStatus('🔄 Starting data sync...', 'info');
+    
+    // Collect all data
+    const syncData = await collectSyncData();
+    
+    // Send to cloud
+    const result = await sendDataToCloud(syncData);
+    
+    if (result.success) {
+      // Update last sync time
+      const now = new Date().toLocaleString();
+      localStorage.setItem('lastSyncTime', now);
+      
+      // Add to sync history
+      addToSyncHistory('Data Sync', true, 'Successfully synced all data to cloud');
+      
+      showSyncStatus('✅ Data synced successfully!', 'success');
+      
+      // Refresh data summary
+      await loadSyncDataSummary();
+      await loadSyncHistory();
+      
+    } else {
+      throw new Error(result.error || 'Sync failed');
+    }
+    
+  } catch (error) {
+    console.error('Sync error:', error);
+    showSyncStatus('❌ Sync failed: ' + error.message, 'error');
+    addToSyncHistory('Data Sync', false, error.message);
+  } finally {
+    // Re-enable button
+    syncBtn.disabled = false;
+    syncBtn.innerHTML = '☁️ Sync Now';
+  }
+}
+
+async function collectSyncData() {
+  console.log('Collecting sync data...');
+  
+  const data = {
+    timestamp: new Date().toISOString(),
+    strategies: [],
+    trades: [],
+    settings: {},
+    version: '3.6.0'
+  };
+  
+  try {
+    // Get strategies
+    const strategiesResponse = await window.electron.strategy.getAll();
+    if (strategiesResponse.success) {
+      data.strategies = strategiesResponse.strategies;
+    }
+    
+    // Get trades
+    const tradesResponse = await window.electron.trade.getAll();
+    if (tradesResponse.success) {
+      data.trades = tradesResponse.trades;
+    }
+    
+    // Get settings
+    const settingsResponse = await window.electron.settings.getAll();
+    if (settingsResponse.success) {
+      data.settings = settingsResponse.settings;
+    }
+    
+    console.log(`✅ Collected ${data.strategies.length} strategies, ${data.trades.length} trades`);
+    return data;
+    
+  } catch (error) {
+    console.error('Error collecting sync data:', error);
+    throw error;
+  }
+}
+
+async function sendDataToCloud(data) {
+  console.log('Sending data to cloud...');
+  
+  try {
+    const response = await fetch('https://anvil.shoguncrypto.com/api/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log('Cloud sync response:', result);
+    
+    return { success: true, data: result };
+    
+  } catch (error) {
+    console.error('Cloud sync error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function showSyncStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('sync-status');
+  if (!statusDiv) return;
+  
+  statusDiv.textContent = message;
+  statusDiv.className = `status-message ${type}`;
+  
+  // Auto-hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      statusDiv.textContent = '';
+      statusDiv.className = 'status-message';
+    }, 5000);
+  }
+}
+
+function addToSyncHistory(action, success, message) {
+  try {
+    const history = JSON.parse(localStorage.getItem('syncHistory') || '[]');
+    
+    history.unshift({
+      action,
+      success,
+      message,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Keep only last 50 entries
+    if (history.length > 50) {
+      history.splice(50);
+    }
+    
+    localStorage.setItem('syncHistory', JSON.stringify(history));
+    
+  } catch (error) {
+    console.error('Error adding to sync history:', error);
+  }
+}
+
 
 // Strategy control functions
 async function startStrategy(strategyId, type) {
