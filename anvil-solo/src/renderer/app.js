@@ -1637,6 +1637,9 @@ function showPage(pageName) {
   } else if (pageName === 'dca' || pageName === 'ratio' || pageName === 'bundle') {
     populateTokenDropdowns();
     populateWalletDropdowns();
+  } else if (pageName === 'wallet') {
+    populateWithdrawWallets();
+    populateTokenDropdowns(); // For token withdrawal
   }
 }
 
