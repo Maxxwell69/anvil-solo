@@ -5,6 +5,15 @@ import Joi from 'joi';
 
 const router = express.Router();
 
+// Test endpoint - check if license server is reachable
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'License server is online',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Validation schemas
 const activateSchema = Joi.object({
   licenseKey: Joi.string().required(),
@@ -29,10 +38,12 @@ router.post('/activate', async (req, res) => {
     }
     
     const { licenseKey, hardwareId, email } = value;
-    const db = getDatabase();
+    const sql = getDatabase(); // PostgreSQL connection
     
     // Check if license exists
-    const license = db.prepare('SELECT * FROM licenses WHERE license_key = ?').get(licenseKey);
+    const [license] = await sql`
+      SELECT * FROM licenses WHERE license_key = ${licenseKey}
+    `;
     
     if (!license) {
       return res.status(404).json({ 
@@ -58,18 +69,26 @@ router.post('/activate', async (req, res) => {
     }
     
     // Activate license
-    db.prepare(`
+    await sql`
       UPDATE licenses 
-      SET hardware_id = ?, 
-          email = COALESCE(?, email),
+      SET hardware_id = ${hardwareId}, 
+          email = COALESCE(${email}, email),
           activated_at = COALESCE(activated_at, CURRENT_TIMESTAMP),
           last_validated = CURRENT_TIMESTAMP,
-          status = 'active'
-      WHERE license_key = ?
-    `).run(hardwareId, email, licenseKey);
+          status = 'active',
+          activated_by_user = TRUE
+      WHERE license_key = ${licenseKey}
+    `;
     
     // Get updated license
-    const updatedLicense = db.prepare('SELECT * FROM licenses WHERE license_key = ?').get(licenseKey);
+    const [updatedLicense] = await sql`
+      SELECT * FROM licenses WHERE license_key = ${licenseKey}
+    `;
+    
+    console.log(`✅ License activated: ${licenseKey} by user with email: ${email || updatedLicense.email}`);
+    console.log(`   Hardware ID: ${hardwareId}`);
+    console.log(`   Tier: ${updatedLicense.tier}`);
+    console.log(`   Max Strategies: ${updatedLicense.max_strategies}`);
     
     res.json({
       valid: true,
@@ -83,7 +102,7 @@ router.post('/activate', async (req, res) => {
     });
   } catch (err: any) {
     console.error('Activate error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 
@@ -99,9 +118,11 @@ router.post('/validate', async (req, res) => {
     }
     
     const { licenseKey, hardwareId } = value;
-    const db = getDatabase();
+    const sql = getDatabase(); // PostgreSQL connection
     
-    const license = db.prepare('SELECT * FROM licenses WHERE license_key = ?').get(licenseKey);
+    const [license] = await sql`
+      SELECT * FROM licenses WHERE license_key = ${licenseKey}
+    `;
     
     if (!license) {
       return res.json({ valid: false, error: 'Invalid license key' });
@@ -123,8 +144,11 @@ router.post('/validate', async (req, res) => {
     }
     
     // Update last validated
-    db.prepare('UPDATE licenses SET last_validated = CURRENT_TIMESTAMP WHERE license_key = ?')
-      .run(licenseKey);
+    await sql`
+      UPDATE licenses 
+      SET last_validated = CURRENT_TIMESTAMP 
+      WHERE license_key = ${licenseKey}
+    `;
     
     res.json({
       valid: true,
@@ -136,9 +160,9 @@ router.post('/validate', async (req, res) => {
         status: license.status
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Validate error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 
@@ -167,11 +191,11 @@ router.post('/generate', async (req, res) => {
     };
     const limits = tierLimits[tier] || { maxStrategies: 3, maxWallets: 3 };
     
-    const db = getDatabase();
-    db.prepare(`
+    const sql = getDatabase(); // PostgreSQL connection
+    await sql`
       INSERT INTO licenses (license_key, tier, max_strategies, max_wallets, email, status)
-      VALUES (?, ?, ?, ?, ?, 'active')
-    `).run(licenseKey, tier, limits.maxStrategies, limits.maxWallets, email);
+      VALUES (${licenseKey}, ${tier}, ${limits.maxStrategies}, ${limits.maxWallets}, ${email}, 'active')
+    `;
     
     res.json({
       success: true,
@@ -179,9 +203,9 @@ router.post('/generate', async (req, res) => {
       tier,
       limits
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Generate error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 
@@ -197,15 +221,18 @@ router.post('/deactivate', async (req, res) => {
     }
     
     const { licenseKey } = req.body;
-    const db = getDatabase();
+    const sql = getDatabase(); // PostgreSQL connection
     
-    db.prepare('UPDATE licenses SET status = ? WHERE license_key = ?')
-      .run('deactivated', licenseKey);
+    await sql`
+      UPDATE licenses 
+      SET status = 'deactivated' 
+      WHERE license_key = ${licenseKey}
+    `;
     
     res.json({ success: true, message: 'License deactivated' });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Deactivate error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
 

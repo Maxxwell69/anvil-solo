@@ -75,9 +75,21 @@ export async function initDatabase() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       activated_at TIMESTAMP,
       expires_at TIMESTAMP,
-      last_validated TIMESTAMP
+      last_validated TIMESTAMP,
+      activated_by_user BOOLEAN DEFAULT FALSE
     )
   `;
+  
+  // Add activated_by_user column if it doesn't exist (migration)
+  try {
+    await sql`
+      ALTER TABLE licenses ADD COLUMN IF NOT EXISTS activated_by_user BOOLEAN DEFAULT FALSE
+    `;
+    console.log('✅ Added activated_by_user column to licenses table');
+  } catch (err) {
+    // Column might already exist, that's OK
+    console.log('ℹ️  activated_by_user column already exists or error adding it');
+  }
   
   await sql`
     CREATE TABLE IF NOT EXISTS strategy_executions (
