@@ -1273,6 +1273,7 @@ async function populateTokenDropdowns() {
     }
     
     const tokens = response.tokens || [];
+    console.log(`📊 Found ${tokens.length} token(s) in database`);
     
     // Populate all token dropdowns
     const dropdownIds = [
@@ -1288,17 +1289,26 @@ async function populateTokenDropdowns() {
         // Keep the first option (placeholder)
         const firstOption = dropdown.options[0];
         dropdown.innerHTML = '';
-        dropdown.appendChild(firstOption);
         
-        // Add token options
-        tokens.forEach(token => {
-          const option = document.createElement('option');
-          option.value = token.contract_address;
-          option.textContent = `${token.name}${token.symbol ? ` (${token.symbol})` : ''} - ${token.contract_address.substring(0, 8)}...`;
-          dropdown.appendChild(option);
-        });
+        if (tokens.length === 0) {
+          // No tokens - show helpful message
+          const noTokensOption = document.createElement('option');
+          noTokensOption.value = '';
+          noTokensOption.textContent = '-- No tokens saved yet - Add in Token Manager or enter address below --';
+          dropdown.appendChild(noTokensOption);
+        } else {
+          // Has tokens - add placeholder then tokens
+          dropdown.appendChild(firstOption);
+          
+          tokens.forEach(token => {
+            const option = document.createElement('option');
+            option.value = token.contract_address;
+            option.textContent = `${token.name}${token.symbol ? ` (${token.symbol})` : ''} - ${token.contract_address.substring(0, 8)}...`;
+            dropdown.appendChild(option);
+          });
+        }
         
-        console.log(`✅ Populated ${dropdownId} with ${tokens.length} tokens`);
+        console.log(`✅ Populated ${dropdownId} with ${tokens.length} token(s)`);
       }
     });
     
