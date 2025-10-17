@@ -39,7 +39,7 @@ router.post('/activate', async (req, res) => {
     
     const licenseKey = req.body.licenseKey;
     const hardwareId = req.body.hardwareId;
-    const email = req.body.email;
+    const email = req.body.email || null;
     
     const sql = getDatabase();
     
@@ -62,9 +62,16 @@ router.post('/activate', async (req, res) => {
       return res.status(403).json({ error: 'License has expired', valid: false });
     }
     
-    // Activate license
-    const query2 = 'UPDATE licenses SET hardware_id = $1, email = COALESCE($2, email), activated_at = COALESCE(activated_at, CURRENT_TIMESTAMP), last_validated = CURRENT_TIMESTAMP, status = $3, activated_by_user = TRUE WHERE license_key = $4';
-    await sql.unsafe(query2, [hardwareId, email, 'active', licenseKey]);
+    // Activate license - handle null email properly
+    let query2, params;
+    if (email) {
+      query2 = 'UPDATE licenses SET hardware_id = $1, email = $2, activated_at = COALESCE(activated_at, CURRENT_TIMESTAMP), last_validated = CURRENT_TIMESTAMP, status = $3, activated_by_user = TRUE WHERE license_key = $4';
+      params = [hardwareId, email, 'active', licenseKey];
+    } else {
+      query2 = 'UPDATE licenses SET hardware_id = $1, activated_at = COALESCE(activated_at, CURRENT_TIMESTAMP), last_validated = CURRENT_TIMESTAMP, status = $2, activated_by_user = TRUE WHERE license_key = $3';
+      params = [hardwareId, 'active', licenseKey];
+    }
+    await sql.unsafe(query2, params);
     
     // Get updated license
     const query3 = 'SELECT * FROM licenses WHERE license_key = $1';
