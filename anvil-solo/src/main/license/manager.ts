@@ -87,8 +87,8 @@ export class LicenseManager {
       if (result && result.license_key) {
         this.currentLicense = {
           tier: result.tier as LicenseTier,
-          features: JSON.parse(result.features || '{}'),
-          expiresAt: result.expires_at,
+          features: result.features ? JSON.parse(result.features) : FREE_TIER_FEATURES,
+          expiresAt: result.expires_at ? new Date(result.expires_at).toISOString() : null,
           isValid: true,
           lastValidated: result.last_validated ? new Date(result.last_validated) : null,
         };
@@ -97,8 +97,8 @@ export class LicenseManager {
         const shouldRevalidate = !this.currentLicense.lastValidated || 
           (Date.now() - this.currentLicense.lastValidated.getTime() > 24 * 60 * 60 * 1000); // 24 hours
 
-        if (shouldRevalidate && result.token) {
-          this.validateLicense(result.token).catch(err => {
+        if (shouldRevalidate) {
+          this.validateLicense().catch(err => {
             console.warn('Auto-revalidation failed:', err.message);
           });
         }
@@ -173,18 +173,17 @@ export class LicenseManager {
         prioritySupport: license.tier !== 'starter',
       };
 
-      // Save license to database (token not used in this version)
+      // Save license to database
       this.db.prepare(`
-        INSERT OR REPLACE INTO license (id, license_key, tier, token, features, expires_at, activated_at, last_validated)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO license (id, license_key, tier, features, expires_at, activated_at, last_validated)
+        VALUES (1, ?, ?, ?, ?, ?, ?)
       `).run(
         licenseKey,
         license.tier,
-        licenseKey, // Use license key as token for now
         JSON.stringify(features),
-        license.expiresAt,
-        new Date().toISOString(),
-        new Date().toISOString()
+        license.expiresAt ? new Date(license.expiresAt).getTime() : null,
+        Date.now(),
+        Date.now()
       );
 
       // Update current license

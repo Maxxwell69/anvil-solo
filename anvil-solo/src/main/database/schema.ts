@@ -175,7 +175,9 @@ export class DatabaseSchema {
       CREATE TABLE IF NOT EXISTS license (
         id INTEGER PRIMARY KEY CHECK(id = 1),
         license_key TEXT,
-        tier TEXT CHECK(tier IN ('starter', 'pro', 'enterprise')),
+        tier TEXT CHECK(tier IN ('free', 'starter', 'pro', 'enterprise', 'lifetime')),
+        features TEXT,
+        expires_at INTEGER,
         activated_at INTEGER,
         last_validated INTEGER,
         hwid TEXT
