@@ -259,6 +259,29 @@ export class DatabaseSchema {
   private runMigrations(): void {
     console.log('Running database migrations...');
 
+    // Migration -1: Add missing columns to license table
+    console.log('  🔧 Migration -1: Checking license table schema...');
+    try {
+      // Check if features column exists
+      const tableInfo = this.db.prepare("PRAGMA table_info(license)").all();
+      const hasFeatures = tableInfo.some((col: any) => col.name === 'features');
+      const hasExpiresAt = tableInfo.some((col: any) => col.name === 'expires_at');
+      
+      if (!hasFeatures) {
+        console.log('  🔧 Adding features column to license table');
+        this.db.exec('ALTER TABLE license ADD COLUMN features TEXT');
+      }
+      
+      if (!hasExpiresAt) {
+        console.log('  🔧 Adding expires_at column to license table');
+        this.db.exec('ALTER TABLE license ADD COLUMN expires_at INTEGER');
+      }
+      
+      console.log('  ✅ License table schema migration complete');
+    } catch (migrationError: any) {
+      console.error('  ❌ License table migration failed:', migrationError.message);
+    }
+
     // Migration 0: Ensure fee settings exist (for databases created before fee system)
     console.log('  🔧 Migration 0: Checking fee settings...');
     try {
