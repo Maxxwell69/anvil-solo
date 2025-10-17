@@ -171,17 +171,17 @@ async function loadDownloads() {
         downloadsList.innerHTML = '';
 
         // Always show download links (GitHub releases)
-        const availableDownloads = [
-            {
-                id: 'windows-installer',
-                displayName: 'Anvil Solo - Windows Installer',
-                description: 'Professional installer - Creates desktop shortcut and Start Menu entry',
-                version: '3.3.9',
-                size: 88635462,
-                platform: 'windows',
-                downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/3.3.9/Anvil-Solo-Setup-3.3.9.exe'
-            }
-        ];
+const availableDownloads = [
+    {
+        id: 'windows-installer',
+        displayName: 'Anvil Solo - Windows Installer',
+        description: 'Professional installer - Creates desktop shortcut and Start Menu entry',
+        version: '3.5.0',
+        size: 88635462,
+        platform: 'windows',
+        downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/v3.5.0/Anvil-Solo-Setup-3.5.0.exe'
+    }
+];
 
         availableDownloads.forEach(file => {
             const sizeInMB = (file.size / 1000000).toFixed(0);
