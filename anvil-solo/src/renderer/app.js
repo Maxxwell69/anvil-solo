@@ -290,23 +290,33 @@ function setupWalletPage() {
 // Load all wallets with balances and token holdings
 async function loadAllWallets() {
   try {
+    console.log('🔍 loadAllWallets() called - NEW VERSION');
     const walletsList = document.getElementById('all-wallets-list');
-    if (!walletsList) return;
+    if (!walletsList) {
+      console.error('❌ all-wallets-list element not found');
+      return;
+    }
     
     walletsList.innerHTML = '<div class="empty-state">Loading wallets...</div>';
     
     if (!window.electron || !window.electron.wallet || !window.electron.token) {
+      console.error('❌ Electron APIs not available');
       walletsList.innerHTML = '<div class="empty-state">⚠️ Wallet manager not initialized</div>';
       return;
     }
     
     // Get all wallets with balances
+    console.log('🔍 Calling getAllWithBalances()...');
     const walletsResult = await window.electron.wallet.getAllWithBalances();
+    console.log('🔍 getAllWithBalances result:', walletsResult);
     
     if (!walletsResult.success || !walletsResult.wallets || walletsResult.wallets.length === 0) {
+      console.log('❌ No wallets found');
       walletsList.innerHTML = '<div class="empty-state">No wallets found. Create or import a wallet to get started.</div>';
       return;
     }
+    
+    console.log(`✅ Found ${walletsResult.wallets.length} wallet(s)`);
     
     // Get saved tokens
     const tokensResponse = await window.electron.token.list();
@@ -316,6 +326,7 @@ async function loadAllWallets() {
     
     // Display each wallet
     for (const wallet of walletsResult.wallets) {
+      console.log(`🔍 Processing wallet: ${wallet.publicKey}, balance: ${wallet.balance}`);
       const walletCard = document.createElement('div');
       walletCard.className = 'wallet-card';
       walletCard.style.background = '#1a1f36';
@@ -357,6 +368,7 @@ async function loadAllWallets() {
       solRow.style.borderRadius = '8px';
       solRow.style.marginBottom = '10px';
       
+      console.log(`🔍 Creating SOL row for wallet ${wallet.publicKey} with balance ${wallet.balance}`);
       solRow.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 1.2em;">◎</span>
@@ -375,6 +387,7 @@ async function loadAllWallets() {
           </button>
         </div>
       `;
+      console.log(`🔍 SOL row HTML created with withdraw button`);
       
       walletCard.appendChild(solRow);
       
@@ -426,6 +439,15 @@ async function loadAllWallets() {
     }
     
     console.log(`✅ Loaded ${walletsResult.wallets.length} wallet(s) with balances`);
+    
+    // Debug: Check what's actually in the DOM
+    setTimeout(() => {
+      const walletsList = document.getElementById('all-wallets-list');
+      console.log('🔍 Final DOM content:', walletsList.innerHTML);
+      const withdrawButtons = walletsList.querySelectorAll('button[onclick*="openWithdrawModal"]');
+      console.log(`🔍 Found ${withdrawButtons.length} withdraw buttons in DOM`);
+    }, 100);
+    
   } catch (error) {
     console.error('Error loading wallets:', error);
     const walletsList = document.getElementById('all-wallets-list');
