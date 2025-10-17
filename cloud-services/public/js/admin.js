@@ -196,7 +196,7 @@ async function refreshLicenses() {
                             <p class="text-gray-600 font-mono text-sm mb-2">${license.license_key}</p>
                             <p class="text-gray-600">User: ${license.username || license.user_email || 'N/A'}</p>
                             <p class="text-sm text-gray-500 mt-2">
-                                Issued: ${new Date(license.issued_at).toLocaleDateString()} • 
+                                Issued: ${license.issued_at || license.created_at ? new Date(license.issued_at || license.created_at).toLocaleDateString() : 'N/A'} • 
                                 Expires: ${license.expires_at ? new Date(license.expires_at).toLocaleDateString() : 'Never'}
                             </p>
                         </div>
