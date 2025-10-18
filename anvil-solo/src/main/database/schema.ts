@@ -88,9 +88,10 @@ export class DatabaseSchema {
         type TEXT NOT NULL CHECK(type IN ('dca', 'ratio', 'bundle')),
         token_address TEXT NOT NULL,
         config TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'stopped', 'completed', 'archived')) DEFAULT 'stopped',
+        status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'stopped', 'completed', 'archived', 'deleted')) DEFAULT 'stopped',
         progress TEXT,
         archived_at INTEGER,
+        deleted_at INTEGER,
         cloud_synced BOOLEAN DEFAULT FALSE,
         archive_notes TEXT,
         created_at INTEGER NOT NULL,
@@ -477,6 +478,85 @@ export class DatabaseSchema {
       }
     } catch (error: any) {
       console.error('  ❌ Migration failed:', error.message);
+      console.error('  Full error:', error);
+      // Don't throw - allow app to continue with existing schema
+    }
+    
+    // Migration 2: Add 'deleted' status and deleted_at column for soft delete
+    console.log('  🔧 Migration 2: Adding soft delete support...');
+    try {
+      // Check if strategies table has deleted_at column
+      const tableInfo = this.db.prepare("PRAGMA table_info(strategies)").all();
+      const hasDeletedAt = tableInfo.some((col: any) => col.name === 'deleted_at');
+      
+      // Check if 'deleted' status is allowed
+      let needsStatusUpdate = false;
+      try {
+        this.db.prepare('BEGIN').run();
+        this.db.prepare('INSERT INTO strategies (type, token_address, config, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+          'dca', 'test', '{}', 'deleted', Date.now(), Date.now()
+        );
+        const testId = this.db.prepare('SELECT last_insert_rowid() as id').get() as any;
+        this.db.prepare('DELETE FROM strategies WHERE id = ?').run(testId.id);
+        this.db.prepare('COMMIT').run();
+      } catch (e: any) {
+        this.db.prepare('ROLLBACK').run();
+        if (e.message.includes('CHECK constraint')) {
+          needsStatusUpdate = true;
+          console.log('  🔧 Strategies table needs to support "deleted" status');
+        }
+      }
+      
+      if (!hasDeletedAt || needsStatusUpdate) {
+        console.log('  🔧 Recreating strategies table with soft delete support...');
+        
+        // Get existing data
+        const existingStrategies = this.db.prepare('SELECT * FROM strategies').all();
+        console.log(`  Found ${existingStrategies.length} existing strategies to migrate`);
+        
+        // Create new table with deleted status and deleted_at column
+        this.db.exec(`
+          CREATE TABLE strategies_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL CHECK(type IN ('dca', 'ratio', 'bundle')),
+            token_address TEXT NOT NULL,
+            config TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('active', 'paused', 'stopped', 'completed', 'archived', 'deleted')) DEFAULT 'stopped',
+            progress TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            archived_at INTEGER,
+            deleted_at INTEGER,
+            cloud_synced BOOLEAN DEFAULT FALSE,
+            archive_notes TEXT
+          )
+        `);
+        
+        // Copy all data from old table
+        this.db.exec(`
+          INSERT INTO strategies_new (id, type, token_address, config, status, progress, created_at, updated_at, archived_at, cloud_synced, archive_notes)
+          SELECT id, type, token_address, config, status, progress, created_at, updated_at, archived_at, cloud_synced, archive_notes
+          FROM strategies
+        `);
+        
+        // Drop old table
+        this.db.exec('DROP TABLE strategies');
+        
+        // Rename new table
+        this.db.exec('ALTER TABLE strategies_new RENAME TO strategies');
+        
+        // Recreate indexes
+        this.db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_strategies_status 
+          ON strategies(status)
+        `);
+        
+        console.log('  ✅ Migration 2 completed - Soft delete now supported!');
+      } else {
+        console.log('  ✅ Soft delete support already enabled');
+      }
+    } catch (error: any) {
+      console.error('  ❌ Migration 2 failed:', error.message);
       console.error('  Full error:', error);
       // Don't throw - allow app to continue with existing schema
     }

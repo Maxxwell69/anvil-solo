@@ -3470,19 +3470,20 @@ function confirmDeleteStrategy(strategyId, strategyType, typeLabel) {
   deleteModal.className = 'modal';
   deleteModal.innerHTML = `
     <div class="modal-content" style="max-width: 500px;">
-      <h2>🗑️ Delete Strategy</h2>
+      <h2>🗑️ Remove Strategy</h2>
       <div style="margin: 20px 0;">
-        <p style="color: #e74c3c; font-weight: bold; margin-bottom: 15px;">
-          ⚠️ WARNING: This action cannot be undone!
-        </p>
-        <p>Are you sure you want to permanently delete this <strong>${typeLabel}</strong> strategy?</p>
+        <div style="background: rgba(46, 213, 115, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(46, 213, 115, 0.3); margin-bottom: 15px;">
+          <p style="color: #2ed573; font-weight: bold; margin: 0 0 8px 0;">✅ Your Data is Safe!</p>
+          <p style="color: #bdc3c7; font-size: 13px; margin: 0;">All trades, transactions, and volume data will be kept for analytics and future sync.</p>
+        </div>
+        <p>Are you sure you want to remove this <strong>${typeLabel}</strong> strategy from your dashboard?</p>
         <p style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">
-          This will remove the strategy from your dashboard and cannot be recovered.
+          The strategy will be hidden from your dashboard, but all historical data is preserved.
         </p>
       </div>
       <div class="form-actions">
         <button id="delete-strategy-cancel-btn" class="btn btn-secondary">Cancel</button>
-        <button id="delete-strategy-confirm-btn" class="btn btn-danger">🗑️ Delete Permanently</button>
+        <button id="delete-strategy-confirm-btn" class="btn btn-primary">✅ Remove from Dashboard</button>
       </div>
     </div>
   `;
@@ -3519,20 +3520,23 @@ function confirmDeleteStrategy(strategyId, strategyType, typeLabel) {
 // Delete strategy function
 async function deleteStrategy(strategyId) {
   try {
-    console.log(`Deleting strategy #${strategyId}...`);
+    console.log(`Soft-deleting strategy #${strategyId} (keeping all data)...`);
     
-    if (!window.electron || !window.electron.strategy) {
-      throw new Error('Strategy API not available');
+    if (!window.electron || !window.electron.database) {
+      throw new Error('Database API not available');
     }
     
-    // Call backend to delete strategy
-    const result = await window.electron.strategy.delete(strategyId);
+    // Soft delete: Mark strategy as deleted but keep all data
+    const result = await window.electron.database.query(
+      'UPDATE strategies SET status = ?, deleted_at = ? WHERE id = ?',
+      ['deleted', new Date().toISOString(), strategyId]
+    );
     
     if (result.success) {
-      console.log(`✅ Strategy #${strategyId} deleted successfully`);
+      console.log(`✅ Strategy #${strategyId} removed from dashboard (data preserved)`);
       
       // Show success message
-      showStatusMessage(`✅ Strategy #${strategyId} deleted successfully`, 'success');
+      showStatusMessage(`✅ Strategy removed from dashboard. All data preserved for analytics.`, 'success');
       
       // Navigate to dashboard
       showPage('dashboard');
@@ -3544,7 +3548,7 @@ async function deleteStrategy(strategyId) {
       await loadDashboardStats();
       
     } else {
-      throw new Error(result.error || 'Failed to delete strategy');
+      throw new Error(result.error || 'Failed to remove strategy');
     }
     
   } catch (error) {

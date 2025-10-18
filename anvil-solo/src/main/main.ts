@@ -699,7 +699,7 @@ ipcMain.handle('strategies:getAll', async (event) => {
         t.symbol as token_symbol
       FROM strategies s
       LEFT JOIN tokens t ON s.token_address = t.contract_address
-      WHERE s.status != 'archived'
+      WHERE s.status != 'archived' AND s.status != 'deleted'
       ORDER BY s.created_at ASC
     `).all();
     
