@@ -12,7 +12,7 @@
   <div id="unlock-screen" class="screen active">
     <div class="unlock-container">
       <h1>🔒 Anvil Solo</h1>
-      <p class="version-splash">v3.6.0</p>
+      <p class="version-splash">v3.7.0</p>
       <p>Unlock your wallet to continue</p>
       <div class="form-group">
         <div class="password-input-wrapper">
@@ -131,7 +131,7 @@
     <div class="sidebar">
       <div class="logo">
         <h2>⚡ Anvil Solo</h2>
-        <span class="version-badge" id="app-version">v3.6.0</span>
+        <span class="version-badge" id="app-version">v3.7.0</span>
       </div>
       <nav class="nav">
         <a href="#" class="nav-item active" data-page="dashboard">
@@ -140,14 +140,14 @@
         <a href="#" class="nav-item" data-page="tokens">
           <span>🪙</span> Token Manager
         </a>
-        <a href="#" class="nav-item" data-page="dca">
-          <span>📈</span> DCA Strategy
+        <a href="#" class="nav-item" data-page="dca" id="nav-dca">
+          <span>📈</span> DCA Strategy <span class="lock-badge" style="display: none;">🔒</span>
         </a>
-        <a href="#" class="nav-item" data-page="ratio">
-          <span>🎯</span> Ratio Trading
+        <a href="#" class="nav-item" data-page="ratio" id="nav-ratio">
+          <span>🎯</span> Ratio Trading <span class="lock-badge" style="display: none;">🔒</span>
         </a>
-        <a href="#" class="nav-item" data-page="bundle">
-          <span>📦</span> Bundle Trading
+        <a href="#" class="nav-item" data-page="bundle" id="nav-bundle">
+          <span>📦</span> Bundle Trading <span class="lock-badge" style="display: none;">🔒</span>
         </a>
         <a href="#" class="nav-item" data-page="trades">
           <span>📊</span> Trades & Volume
@@ -904,7 +904,7 @@
           <div class="version-info-card">
             <div class="version-row">
               <span class="version-label">Current Version:</span>
-              <span class="version-value" id="diag-current-version">v3.6.0</span>
+              <span class="version-value" id="diag-current-version">v3.7.0</span>
             </div>
             <div class="version-row">
               <span class="version-label">Latest Available:</span>

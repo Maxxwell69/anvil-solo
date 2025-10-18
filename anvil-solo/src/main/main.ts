@@ -249,6 +249,18 @@ async function loadActiveStrategiesFromDatabase() {
 ipcMain.handle('wallet:import', async (event, privateKey: string, password: string, label?: string) => {
   try {
     if (!walletManager) throw new Error('Wallet manager not initialized');
+    if (!licenseManager) throw new Error('License manager not initialized');
+    
+    // Check wallet limit
+    const wallets = walletManager.getAllWallets();
+    const currentCount = wallets.length;
+    
+    if (!licenseManager.canCreateWallet(currentCount)) {
+      const licenseInfo = licenseManager.getLicenseInfo();
+      const limit = licenseInfo.features.maxWallets;
+      throw new Error(`Wallet limit reached (${limit}). Please upgrade your license to add more wallets.`);
+    }
+    
     const publicKey = await walletManager.importWallet(privateKey, password, label);
     return { success: true, publicKey };
   } catch (error: any) {
@@ -259,6 +271,18 @@ ipcMain.handle('wallet:import', async (event, privateKey: string, password: stri
 ipcMain.handle('wallet:generate', async (event, password: string, label?: string) => {
   try {
     if (!walletManager) throw new Error('Wallet manager not initialized');
+    if (!licenseManager) throw new Error('License manager not initialized');
+    
+    // Check wallet limit
+    const wallets = walletManager.getAllWallets();
+    const currentCount = wallets.length;
+    
+    if (!licenseManager.canCreateWallet(currentCount)) {
+      const licenseInfo = licenseManager.getLicenseInfo();
+      const limit = licenseInfo.features.maxWallets;
+      throw new Error(`Wallet limit reached (${limit}). Please upgrade your license to add more wallets.`);
+    }
+    
     const publicKey = await walletManager.generateWallet(password, label);
     return { success: true, publicKey };
   } catch (error: any) {
@@ -891,9 +915,26 @@ ipcMain.handle('strategy:get', async (event, strategyId: number) => {
 ipcMain.handle('strategy:dca:create', async (event, config: DCAConfig) => {
   try {
     if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
+    if (!licenseManager) throw new Error('License manager not initialized');
+    
+    // Check license restrictions
+    const licenseInfo = licenseManager.getLicenseInfo();
+    
+    // Check if DCA strategy is allowed
+    if (!licenseInfo.features.strategyTypes.includes('dca')) {
+      throw new Error('DCA trading is not available in your license tier. Please upgrade your license.');
+    }
+    
+    // Check if user can create more strategies
+    const db = require('./database/schema').getDatabase();
+    const currentCount = db.prepare('SELECT COUNT(*) as count FROM strategies WHERE status IN ("active", "paused", "stopped")').get().count;
+    
+    if (!licenseManager.canCreateStrategy(currentCount)) {
+      const limit = licenseInfo.features.maxActiveStrategies;
+      throw new Error(`Strategy limit reached (${limit}). Please upgrade your license or delete existing strategies.`);
+    }
     
     // Save strategy to database
-    const db = require('./database/schema').getDatabase();
     const result = db.prepare(`
       INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -1083,10 +1124,26 @@ ipcMain.handle('strategy:dca:stop', async (event, strategyId: number) => {
 ipcMain.handle('strategy:ratio:create', async (event, config) => {
   try {
     if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
+    if (!licenseManager) throw new Error('License manager not initialized');
+    
+    // Check license restrictions
+    const licenseInfo = licenseManager.getLicenseInfo();
+    
+    // Check if Ratio strategy is allowed
+    if (!licenseInfo.features.strategyTypes.includes('ratio')) {
+      throw new Error('Ratio trading is not available in your license tier. Please upgrade your license to unlock this feature.');
+    }
+    
+    // Check if user can create more strategies
+    const db = require('./database/schema').getDatabase();
+    const currentCount = db.prepare('SELECT COUNT(*) as count FROM strategies WHERE status IN ("active", "paused", "stopped")').get().count;
+    
+    if (!licenseManager.canCreateStrategy(currentCount)) {
+      const limit = licenseInfo.features.maxActiveStrategies;
+      throw new Error(`Strategy limit reached (${limit}). Please upgrade your license or delete existing strategies.`);
+    }
     
     console.log('Creating Ratio strategy with config:', config);
-    
-    const db = require('./database/schema').getDatabase();
     const result = db.prepare(`
       INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -1218,10 +1275,26 @@ ipcMain.handle('strategy:ratio:stop', async (event, strategyId: number) => {
 ipcMain.handle('strategy:bundle:create', async (event, config) => {
   try {
     if (!walletManager || !jupiterClient) throw new Error('Services not initialized');
+    if (!licenseManager) throw new Error('License manager not initialized');
+    
+    // Check license restrictions
+    const licenseInfo = licenseManager.getLicenseInfo();
+    
+    // Check if Bundle strategy is allowed
+    if (!licenseInfo.features.strategyTypes.includes('bundle')) {
+      throw new Error('Bundle trading is not available in your license tier. Please upgrade your license to unlock this feature.');
+    }
+    
+    // Check if user can create more strategies
+    const db = require('./database/schema').getDatabase();
+    const currentCount = db.prepare('SELECT COUNT(*) as count FROM strategies WHERE status IN ("active", "paused", "stopped")').get().count;
+    
+    if (!licenseManager.canCreateStrategy(currentCount)) {
+      const limit = licenseInfo.features.maxActiveStrategies;
+      throw new Error(`Strategy limit reached (${limit}). Please upgrade your license or delete existing strategies.`);
+    }
     
     console.log('Creating Bundle Reconcile strategy with config:', config);
-    
-    const db = require('./database/schema').getDatabase();
     const result = db.prepare(`
       INSERT INTO strategies (type, token_address, config, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)

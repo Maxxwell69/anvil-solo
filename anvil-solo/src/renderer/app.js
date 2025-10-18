@@ -8,9 +8,67 @@ if (!window.electron) {
   console.log('✅ Electron API loaded successfully');
 }
 
+// License state
+let currentLicense = null;
+
+// Check license and update UI
+async function checkLicenseAndUpdateUI() {
+  try {
+    const result = await window.electron.license.getInfo();
+    if (result.success) {
+      currentLicense = result.info;
+      console.log('📜 License info:', currentLicense);
+      
+      // Update UI based on license
+      updateUIForLicense(currentLicense);
+    }
+  } catch (error) {
+    console.error('Error checking license:', error);
+  }
+}
+
+// Update UI based on license features
+function updateUIForLicense(license) {
+  const features = license.features;
+  
+  // Check each strategy type and show/hide locks
+  const strategyTypes = ['dca', 'ratio', 'bundle'];
+  strategyTypes.forEach(type => {
+    const navItem = document.getElementById(`nav-${type}`);
+    const lockBadge = navItem ? navItem.querySelector('.lock-badge') : null;
+    
+    if (navItem && lockBadge) {
+      if (!features.strategyTypes.includes(type)) {
+        lockBadge.style.display = 'inline';
+        navItem.classList.add('locked-feature');
+        navItem.title = `${type.toUpperCase()} trading requires a license upgrade`;
+      } else {
+        lockBadge.style.display = 'none';
+        navItem.classList.remove('locked-feature');
+        navItem.title = '';
+      }
+    }
+  });
+  
+  // Display license info in settings
+  displayLicenseInfo(license);
+}
+
+// Display license information
+function displayLicenseInfo(license) {
+  const tier = license.tier.toUpperCase();
+  const maxStrategies = license.features.maxActiveStrategies === -1 ? 'Unlimited' : license.features.maxActiveStrategies;
+  const maxWallets = license.features.maxWallets === -1 ? 'Unlimited' : license.features.maxWallets;
+  
+  console.log(`License Tier: ${tier} | Max Strategies: ${maxStrategies} | Max Wallets: ${maxWallets}`);
+}
+
 // Main initialization
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM loaded, initializing...');
+  
+  // Check license first
+  checkLicenseAndUpdateUI();
   
   // Setup wallet creation/import first
   setupWalletCreation();
