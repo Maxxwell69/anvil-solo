@@ -1756,11 +1756,20 @@ function setupLicenseActivation() {
           if (result.success) {
             const tier = result.license ? result.license.tier : 'UNKNOWN';
             console.log('✅ Success! Tier:', tier);
+            console.log('✅ License object:', result.license);
             showLicenseStatus(`✅ ${tier.toUpperCase()} license activated successfully!`, 'success');
-            updateLicenseDisplay(result.license);
             
-            // Reload license info to update UI
-            await loadLicenseInfo();
+            // Update license display
+            if (result.license) {
+              updateLicenseDisplay(result.license);
+              // Also update the current license state
+              currentLicense = result.license;
+              // Update UI locks
+              updateUIForLicense(result.license);
+            }
+            
+            // Reload license info to ensure everything is in sync
+            setTimeout(() => loadLicenseInfo(), 500);
           } else {
             console.error('❌ Activation failed:', result.message);
             showLicenseStatus(`❌ Activation failed: ${result.message}`, 'error');

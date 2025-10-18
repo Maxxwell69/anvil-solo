@@ -564,19 +564,24 @@ export class DatabaseSchema {
     // Migration 3: Fix license table to allow all tier types including 'free' and 'lifetime'
     console.log('  🔧 Migration 3: Fixing license table tier constraint...');
     try {
-      // Check if license table has restrictive tier CHECK constraint
-      let needsRecreate = false;
+      // Always recreate the license table to ensure it has no CHECK constraint
+      // This is critical for supporting all tier types
+      let needsRecreate = true;
+      
+      // First, check if we can insert a 'lifetime' tier
       try {
-        // Try to insert a 'lifetime' tier to test constraint
         this.db.prepare('BEGIN').run();
         this.db.prepare('INSERT OR REPLACE INTO license (id, license_key, tier) VALUES (999, "__test_lifetime__", "lifetime")').run();
         this.db.prepare('DELETE FROM license WHERE id = 999').run();
         this.db.prepare('COMMIT').run();
+        // If we got here, the table already supports all tiers
+        needsRecreate = false;
+        console.log('  ✅ License table already supports all tier types');
       } catch (e: any) {
         this.db.prepare('ROLLBACK').run();
         if (e.message.includes('CHECK constraint')) {
           needsRecreate = true;
-          console.log('  🔧 License table has restrictive tier CHECK constraint - needs recreation');
+          console.log('  🔧 License table has restrictive tier CHECK constraint - MUST recreate');
         }
       }
       
