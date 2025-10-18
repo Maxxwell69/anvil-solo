@@ -81,6 +81,8 @@ export class LicenseManager {
    * Check for hardcoded special license keys
    */
   private checkHardcodedLicense(licenseKey: string): { tier: LicenseTier; features: LicenseFeatures; expiresAt: number | null } | null {
+    console.log('🔍 Checking hardcoded license:', licenseKey);
+    
     const hardcodedLicenses: Record<string, { tier: LicenseTier; features: LicenseFeatures; expiresAt: number | null }> = {
       // STARTER TIER - Special access key
       'ANVIL-STARTER-2025': {
@@ -135,7 +137,9 @@ export class LicenseManager {
       },
     };
     
-    return hardcodedLicenses[licenseKey] || null;
+    const result = hardcodedLicenses[licenseKey] || null;
+    console.log('🔍 Hardcoded license result:', result ? result.tier : 'NOT FOUND');
+    return result;
   }
 
   /**
