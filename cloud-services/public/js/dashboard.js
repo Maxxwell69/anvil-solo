@@ -175,11 +175,11 @@ const availableDownloads = [
     {
         id: 'windows-installer',
         displayName: 'Anvil Solo - Windows Installer',
-        description: 'Professional installer - Creates desktop shortcut and Start Menu entry',
-        version: '3.5.0',
+        description: 'Professional installer with license system and data preservation',
+        version: '3.7.0',
         size: 88635462,
         platform: 'windows',
-        downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/v3.5.0/Anvil-Solo-Setup-3.5.0.exe'
+        downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/v3.7.0/Anvil-Solo-Setup-3.7.0.exe'
     }
 ];
 
