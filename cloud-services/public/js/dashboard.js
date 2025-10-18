@@ -179,7 +179,7 @@ const availableDownloads = [
         version: '3.7.0',
         size: 88635462,
         platform: 'windows',
-        downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/v3.7.0/Anvil-Solo-Setup-3.7.0.exe'
+        downloadUrl: 'https://github.com/Maxxwell69/anvil-solo/releases/download/3.7.0/Anvil-Solo-Setup-3.7.0.exe'
     }
 ];
 
