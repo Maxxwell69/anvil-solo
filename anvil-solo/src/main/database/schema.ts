@@ -561,6 +561,81 @@ export class DatabaseSchema {
       // Don't throw - allow app to continue with existing schema
     }
     
+    // Migration 3: Fix license table to allow all tier types including 'free' and 'lifetime'
+    console.log('  🔧 Migration 3: Fixing license table tier constraint...');
+    try {
+      // Check if license table has restrictive tier CHECK constraint
+      let needsRecreate = false;
+      try {
+        // Try to insert a 'lifetime' tier to test constraint
+        this.db.prepare('BEGIN').run();
+        this.db.prepare('INSERT OR REPLACE INTO license (id, license_key, tier) VALUES (999, "__test_lifetime__", "lifetime")').run();
+        this.db.prepare('DELETE FROM license WHERE id = 999').run();
+        this.db.prepare('COMMIT').run();
+      } catch (e: any) {
+        this.db.prepare('ROLLBACK').run();
+        if (e.message.includes('CHECK constraint')) {
+          needsRecreate = true;
+          console.log('  🔧 License table has restrictive tier CHECK constraint - needs recreation');
+        }
+      }
+      
+      if (needsRecreate) {
+        console.log('  🔧 Recreating license table without tier CHECK constraint...');
+        
+        // Get existing data
+        const existingLicense = this.db.prepare('SELECT * FROM license WHERE id = 1').get() as any;
+        
+        // Drop old table
+        this.db.exec('DROP TABLE IF EXISTS license');
+        
+        // Create new table without CHECK constraint on tier
+        this.db.exec(`
+          CREATE TABLE license (
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            license_key TEXT,
+            tier TEXT,
+            features TEXT,
+            expires_at INTEGER,
+            activated_at INTEGER,
+            last_validated INTEGER,
+            hwid TEXT
+          )
+        `);
+        
+        // Restore data if it existed
+        if (existingLicense) {
+          this.db.prepare(`
+            INSERT INTO license (id, license_key, tier, features, expires_at, activated_at, last_validated, hwid)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            1,
+            existingLicense.license_key || null,
+            existingLicense.tier || 'free',
+            existingLicense.features || JSON.stringify({
+              maxActiveStrategies: 1,
+              maxWallets: 1,
+              strategyTypes: ['dca'],
+              cloudBackup: false,
+              prioritySupport: false
+            }),
+            existingLicense.expires_at || null,
+            existingLicense.activated_at || null,
+            existingLicense.last_validated || null,
+            existingLicense.hwid || null
+          );
+        }
+        
+        console.log('  ✅ Migration 3 completed - All tier types now supported!');
+      } else {
+        console.log('  ✅ License table already supports all tier types');
+      }
+    } catch (error: any) {
+      console.error('  ❌ Migration 3 failed:', error.message);
+      console.error('  Full error:', error);
+      // Don't throw - allow app to continue with existing schema
+    }
+    
     console.log('Migrations completed');
   }
 

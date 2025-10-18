@@ -1749,12 +1749,14 @@ function setupLicenseActivation() {
       try {
         // Call the backend API
         if (window.electron && window.electron.license) {
-          console.log(`🔑 Attempting to activate license: ${licenseKey}`);
+          console.log('🔑 Attempting to activate license:', licenseKey);
           const result = await window.electron.license.activate(licenseKey);
-          console.log('📋 Activation result:', result);
+          console.log('📋 Full activation result:', JSON.stringify(result, null, 2));
           
           if (result.success) {
-            showLicenseStatus(`✅ ${result.license.tier.toUpperCase()} license activated successfully!`, 'success');
+            const tier = result.license ? result.license.tier : 'UNKNOWN';
+            console.log('✅ Success! Tier:', tier);
+            showLicenseStatus(`✅ ${tier.toUpperCase()} license activated successfully!`, 'success');
             updateLicenseDisplay(result.license);
             
             // Reload license info to update UI
