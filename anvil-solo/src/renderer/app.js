@@ -2138,8 +2138,14 @@ async function loadLicenseInfo() {
   try {
     // Load from backend if available
     if (window.electron && window.electron.license) {
-      const licenseInfo = await window.electron.license.getInfo();
-      const hwid = await window.electron.license.getHwid();
+      const response = await window.electron.license.getInfo();
+      const hwidResponse = await window.electron.license.getHwid();
+      
+      console.log('📋 License info response:', response);
+      
+      // Extract license info from response
+      const licenseInfo = response.success ? response.info : null;
+      const hwid = hwidResponse.success ? hwidResponse.hwid : null;
       
       // Validate we have the data
       if (licenseInfo && licenseInfo.tier) {
