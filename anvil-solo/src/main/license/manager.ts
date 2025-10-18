@@ -78,6 +78,67 @@ export class LicenseManager {
   }
 
   /**
+   * Check for hardcoded special license keys
+   */
+  private checkHardcodedLicense(licenseKey: string): { tier: LicenseTier; features: LicenseFeatures; expiresAt: number | null } | null {
+    const hardcodedLicenses: Record<string, { tier: LicenseTier; features: LicenseFeatures; expiresAt: number | null }> = {
+      // STARTER TIER - Special access key
+      'ANVIL-STARTER-2025': {
+        tier: LicenseTier.STARTER,
+        features: {
+          maxActiveStrategies: 3,
+          maxWallets: 3,
+          strategyTypes: ['dca', 'ratio', 'bundle'],
+          cloudBackup: true,
+          prioritySupport: false,
+        },
+        expiresAt: null, // Never expires
+      },
+      
+      // PRO TIER - Special access key
+      'ANVIL-PRO-2025': {
+        tier: LicenseTier.PRO,
+        features: {
+          maxActiveStrategies: 10,
+          maxWallets: 10,
+          strategyTypes: ['dca', 'ratio', 'bundle'],
+          cloudBackup: true,
+          prioritySupport: true,
+        },
+        expiresAt: null, // Never expires
+      },
+      
+      // ENTERPRISE TIER - Special access key
+      'ANVIL-ENTERPRISE-2025': {
+        tier: LicenseTier.ENTERPRISE,
+        features: {
+          maxActiveStrategies: -1, // Unlimited
+          maxWallets: -1, // Unlimited
+          strategyTypes: ['dca', 'ratio', 'bundle'],
+          cloudBackup: true,
+          prioritySupport: true,
+        },
+        expiresAt: null, // Never expires
+      },
+      
+      // LIFETIME TIER - Special access key
+      'ANVIL-LIFETIME-2025': {
+        tier: LicenseTier.LIFETIME,
+        features: {
+          maxActiveStrategies: -1, // Unlimited
+          maxWallets: -1, // Unlimited
+          strategyTypes: ['dca', 'ratio', 'bundle'],
+          cloudBackup: true,
+          prioritySupport: true,
+        },
+        expiresAt: null, // Never expires
+      },
+    };
+    
+    return hardcodedLicenses[licenseKey] || null;
+  }
+
+  /**
    * Load license information from local database
    */
   private loadLicenseFromDatabase(): void {
@@ -130,6 +191,40 @@ export class LicenseManager {
   async activateLicense(licenseKey: string): Promise<{ success: boolean; message: string; license?: LicenseInfo }> {
     try {
       console.log(`Activating license: ${licenseKey} for HWID: ${this.hwid}`);
+      
+      // Check for special hardcoded licenses first (for testing/early access)
+      const hardcodedLicense = this.checkHardcodedLicense(licenseKey);
+      if (hardcodedLicense) {
+        console.log('✅ Hardcoded license detected:', hardcodedLicense.tier);
+        
+        // Save license to database
+        this.db.prepare(`
+          INSERT OR REPLACE INTO license (id, license_key, tier, features, expires_at, activated_at, last_validated)
+          VALUES (1, ?, ?, ?, ?, ?, ?)
+        `).run(
+          licenseKey,
+          hardcodedLicense.tier,
+          JSON.stringify(hardcodedLicense.features),
+          hardcodedLicense.expiresAt,
+          Date.now(),
+          Date.now()
+        );
+        
+        // Update current license
+        this.currentLicense = {
+          tier: hardcodedLicense.tier,
+          features: hardcodedLicense.features,
+          expiresAt: hardcodedLicense.expiresAt ? new Date(hardcodedLicense.expiresAt).toISOString() : null,
+          isValid: true,
+          lastValidated: new Date(),
+        };
+        
+        return {
+          success: true,
+          message: `License activated successfully! Welcome to ${hardcodedLicense.tier.toUpperCase()} tier.`,
+          license: this.currentLicense,
+        };
+      }
       
       const response = await fetch(`${LICENSE_API_URL}/api/license/activate`, {
         method: 'POST',
